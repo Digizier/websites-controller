@@ -4,7 +4,7 @@ const CRON_JOB_API_URL = 'https://api.cron-job.org/jobs';
 
 /**
  * Creates or updates a genuine daily Keep-Alive Cron Job ONLY targeting the Client's own Supabase URL.
- * Will NEVER fallback to Nader's central URL.
+ * Uses /storage/v1/status for universal 200 OK 0-byte keep-alive ping on all Supabase projects.
  */
 export async function createOrUpdateCronJob(clientData, customApiKey) {
   const apiKey = customApiKey || clientData.cron_api_key || CRON_JOB_API_KEY;
@@ -21,9 +21,12 @@ export async function createOrUpdateCronJob(clientData, customApiKey) {
   }
 
   const cleanSupabaseUrl = clientData.supabase_url.trim().replace(/\/$/, '');
-  const targetUrl = `${cleanSupabaseUrl}/rest/v1/`;
+  const targetUrl = `${cleanSupabaseUrl}/storage/v1/status`;
 
-  const anonKey = clientData.anon_key ? clientData.anon_key.trim() : '';
+  // Select available apikey (anon_key, service_role_key, or publishable_key)
+  const selectedKey = (clientData.anon_key && clientData.anon_key.trim()) ||
+                      (clientData.service_role_key && clientData.service_role_key.trim()) ||
+                      (clientData.publishable_key && clientData.publishable_key.trim()) || '';
 
   // Format detailed descriptive title identifying client name, website name, site key & expiry date
   const expiryFormatted = clientData.expiry_date 
@@ -48,10 +51,10 @@ export async function createOrUpdateCronJob(clientData, customApiKey) {
         months: [-1],
         wdays: [-1]
       },
-      requestMethod: 0, // GET
+      requestMethod: 0, // GET Method (Universal 200 OK 0-byte keep-alive ping)
       extendedData: {
         headers: {
-          'apikey': anonKey,
+          'apikey': selectedKey,
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Accept': 'application/json, text/plain, */*',
           'Accept-Language': 'en-US,en;q=0.9',
