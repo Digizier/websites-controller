@@ -1,20 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Globe, User, Phone, ShieldCheck, Mail, Save, Key, Database, Terminal, Link, Sparkles, Power, CheckCircle2, Clock, AlertTriangle, Cloud, Server, GitBranch } from 'lucide-react';
+import { 
+  X, Calendar, Globe, User, Phone, ShieldCheck, Mail, Save, Key, 
+  Database, Terminal, Link, Sparkles, Power, CheckCircle2, Clock, 
+  AlertTriangle, Cloud, Server, GitBranch, MapPin, Hammer, DollarSign 
+} from 'lucide-react';
 import { createOrUpdateCronJob } from '../lib/cronjob';
 import { CRON_JOB_API_KEY } from '../lib/config';
 
-export default function ClientModal({ client, isOpen, onClose, onSave }) {
+export default function ClientModal({ client, affiliates = [], isOpen, onClose, onSave }) {
   const [formData, setFormData] = useState({
     client_name: '',
     client_phone: '',
+    client_location: '',
     website_name: '',
     website_link: '',
     site_key: '',
+    domain_name: '',
+    domain_purchase_date: '',
+    domain_expiry_date: '',
+    domain_registrar: '',
+    monthly_price_pkr: 2500,
+    payment_status: 'paid',
+    lock_mode: 'payment',
+    affiliate_id: '',
     vercel_email: '',
     supabase_email: '',
     github_email: '',
     cloudflare_email: '',
     cronjob_email: '',
+    hosting_email: '',
+    hosting_password: '',
+    github_repo_url: '',
+    github_token: '',
+    cloudflare_api_key: '',
+    resend_api_key: '',
+    resend_from_email: '',
     supabase_url: '',
     publishable_key: '',
     supabase_password: '',
@@ -32,20 +52,37 @@ export default function ClientModal({ client, isOpen, onClose, onSave }) {
   });
 
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic'); // 'basic', 'domain', 'accounts', 'supabase', 'advanced'
 
   useEffect(() => {
     if (client) {
       setFormData({
         client_name: client.client_name || '',
         client_phone: client.client_phone || '',
+        client_location: client.client_location || '',
         website_name: client.website_name || '',
         website_link: client.website_link || '',
         site_key: client.site_key || '',
+        domain_name: client.domain_name || '',
+        domain_purchase_date: client.domain_purchase_date ? new Date(client.domain_purchase_date).toISOString().slice(0, 10) : '',
+        domain_expiry_date: client.domain_expiry_date ? new Date(client.domain_expiry_date).toISOString().slice(0, 10) : '',
+        domain_registrar: client.domain_registrar || '',
+        monthly_price_pkr: client.monthly_price_pkr !== undefined ? client.monthly_price_pkr : 2500,
+        payment_status: client.payment_status || 'paid',
+        lock_mode: client.lock_mode || 'payment',
+        affiliate_id: client.affiliate_id || '',
         vercel_email: client.vercel_email || '',
         supabase_email: client.supabase_email || '',
         github_email: client.github_email || '',
         cloudflare_email: client.cloudflare_email || '',
         cronjob_email: client.cronjob_email || '',
+        hosting_email: client.hosting_email || '',
+        hosting_password: client.hosting_password || '',
+        github_repo_url: client.github_repo_url || '',
+        github_token: client.github_token || '',
+        cloudflare_api_key: client.cloudflare_api_key || '',
+        resend_api_key: client.resend_api_key || '',
+        resend_from_email: client.resend_from_email || '',
         supabase_url: client.supabase_url || '',
         publishable_key: client.publishable_key || '',
         supabase_password: client.supabase_password || '',
@@ -71,14 +108,30 @@ export default function ClientModal({ client, isOpen, onClose, onSave }) {
       setFormData({
         client_name: '',
         client_phone: '',
+        client_location: '',
         website_name: '',
         website_link: '',
         site_key: randomKey,
+        domain_name: '',
+        domain_purchase_date: '',
+        domain_expiry_date: '',
+        domain_registrar: '',
+        monthly_price_pkr: 2500,
+        payment_status: 'paid',
+        lock_mode: 'payment',
+        affiliate_id: '',
         vercel_email: '',
         supabase_email: '',
         github_email: '',
         cloudflare_email: '',
         cronjob_email: '',
+        hosting_email: '',
+        hosting_password: '',
+        github_repo_url: '',
+        github_token: '',
+        cloudflare_api_key: '',
+        resend_api_key: '',
+        resend_from_email: '',
         supabase_url: '',
         publishable_key: '',
         supabase_password: '',
@@ -114,7 +167,8 @@ export default function ClientModal({ client, isOpen, onClose, onSave }) {
       return {
         ...prev,
         website_name: val,
-        site_key: client ? prev.site_key : (slugified || prev.site_key)
+        site_key: client ? prev.site_key : (slugified || prev.site_key),
+        domain_name: prev.domain_name || (val ? `${val.toLowerCase().replace(/[^a-z0-9]/g, '')}.pk` : '')
       };
     });
   };
@@ -125,7 +179,10 @@ export default function ClientModal({ client, isOpen, onClose, onSave }) {
 
     const finalData = {
       ...formData,
-      expiry_date: new Date(formData.expiry_date).toISOString()
+      monthly_price_pkr: Number(formData.monthly_price_pkr) || 2500,
+      expiry_date: new Date(formData.expiry_date).toISOString(),
+      domain_purchase_date: formData.domain_purchase_date ? new Date(formData.domain_purchase_date).toISOString() : null,
+      domain_expiry_date: formData.domain_expiry_date ? new Date(formData.domain_expiry_date).toISOString() : null
     };
 
     let cronId = formData.cron_job_id;
@@ -143,385 +200,639 @@ export default function ClientModal({ client, isOpen, onClose, onSave }) {
     setSaving(false);
   };
 
-  const formattedExpiry = formData.expiry_date 
-    ? new Date(formData.expiry_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-    : 'N/A';
-
-  const cronTitlePreview = `[Keep-Alive] Client: ${formData.client_name || 'Client'} | Site: ${formData.website_name || 'Website'} (${formData.site_key || 'site_key'}) | Active Until: ${formattedExpiry}`;
-
-  const hasClientUrl = formData.supabase_url && formData.supabase_url.trim().length > 0;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl max-w-3xl w-full p-6 shadow-2xl overflow-y-auto max-h-[92vh] text-gray-100 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in font-sans">
+      <div className="bg-white border border-slate-200 rounded-3xl max-w-4xl w-full p-6 shadow-2xl overflow-y-auto max-h-[92vh] text-slate-800 relative">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-800 pb-4 mb-6">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <Globe className="w-5 h-5" />
+            <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+              <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">
-                {client ? 'Edit Client & Accounts' : 'Add Client Website & 5 Platform Accounts'}
+              <h2 className="text-xl font-bold text-slate-900">
+                {client ? `Edit ${client.website_name || 'Client Website'}` : 'Add New Client Website'}
               </h2>
-              <p className="text-xs text-gray-400">Manage Vercel, Supabase, GitHub, Cloudflare & Cronjob accounts with notes</p>
+              <p className="text-xs text-slate-500">
+                Configure client details, domain tracking, accounts, credentials & first-layer lock
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800">
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Tab Navigation */}
+        <div className="flex gap-2 border-b border-slate-200 pb-3 mb-6 overflow-x-auto text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setActiveTab('basic')}
+            className={`px-3.5 py-1.5 rounded-xl transition whitespace-nowrap ${
+              activeTab === 'basic' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            1. Basic & Billing
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('domain')}
+            className={`px-3.5 py-1.5 rounded-xl transition whitespace-nowrap ${
+              activeTab === 'domain' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            2. Domain Tracker
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('accounts')}
+            className={`px-3.5 py-1.5 rounded-xl transition whitespace-nowrap ${
+              activeTab === 'accounts' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            3. Accounts & Credentials
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('supabase')}
+            className={`px-3.5 py-1.5 rounded-xl transition whitespace-nowrap ${
+              activeTab === 'supabase' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            4. Cloud DB & Keep-Alive
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('advanced')}
+            className={`px-3.5 py-1.5 rounded-xl transition whitespace-nowrap ${
+              activeTab === 'advanced' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            5. Lock Modes & Notice
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* Section 1: Client General & Billing Info */}
-          <div className="space-y-4 bg-gray-950/60 p-4 border border-gray-800 rounded-xl">
-            <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-              <User className="w-4 h-4" /> 1. Client & Website Details
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Client Full Name *</label>
-                <input
-                  type="text"
-                  name="client_name"
-                  required
-                  placeholder="e.g. Imran Shah"
-                  value={formData.client_name}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Client Phone / WhatsApp *</label>
-                <input
-                  type="text"
-                  name="client_phone"
-                  required
-                  placeholder="e.g. 03001234567"
-                  value={formData.client_phone}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Website Name *</label>
-                <input
-                  type="text"
-                  name="website_name"
-                  required
-                  placeholder="e.g. Luxury Estate Pro"
-                  value={formData.website_name}
-                  onChange={handleWebsiteNameChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Website URL *</label>
-                <input
-                  type="url"
-                  name="website_link"
-                  required
-                  placeholder="https://client-site.com"
-                  value={formData.website_link}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Site Key (Controller ID) *</label>
-                <input
-                  type="text"
-                  name="site_key"
-                  required
-                  value={formData.site_key}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 font-mono text-sm text-emerald-400 focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Expiry / Lock Cutoff Date *</label>
-                <input
-                  type="datetime-local"
-                  name="expiry_date"
-                  required
-                  value={formData.expiry_date}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Associated 5 Platform Accounts & Notes */}
-          <div className="space-y-4 bg-gray-950/60 p-4 border border-gray-800 rounded-xl">
-            <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Mail className="w-4 h-4" /> 2. Client 5 Associated Platform Accounts & Notes
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1 flex items-center gap-1.5">
-                  <Server className="w-3.5 h-3.5 text-blue-400" /> Vercel Account Email / Text
-                </label>
-                <input
-                  type="text"
-                  name="vercel_email"
-                  placeholder="client-vercel@gmail.com (or account notes)"
-                  value={formData.vercel_email}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1 flex items-center gap-1.5">
-                  <Database className="w-3.5 h-3.5 text-emerald-400" /> Supabase Account Email / Text
-                </label>
-                <input
-                  type="text"
-                  name="supabase_email"
-                  placeholder="client-supabase@gmail.com (or account notes)"
-                  value={formData.supabase_email}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1 flex items-center gap-1.5">
-                  <GitBranch className="w-3.5 h-3.5 text-purple-400" /> GitHub Account Email / Text
-                </label>
-                <input
-                  type="text"
-                  name="github_email"
-                  placeholder="client-github@gmail.com (or account notes)"
-                  value={formData.github_email}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1 flex items-center gap-1.5">
-                  <Cloud className="w-3.5 h-3.5 text-amber-400" /> Cloudflare Account Email / Text
-                </label>
-                <input
-                  type="text"
-                  name="cloudflare_email"
-                  placeholder="client-cloudflare@gmail.com (or account notes)"
-                  value={formData.cloudflare_email}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="col-span-1 md:col-span-2">
-                <label className="block text-xs font-semibold text-gray-300 mb-1 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-blue-300" /> Cron-Job.org Account Email / Text
-                </label>
-                <input
-                  type="text"
-                  name="cronjob_email"
-                  placeholder="client-cronjob@gmail.com (or account notes)"
-                  value={formData.cronjob_email}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: CLIENT Specific Supabase Credentials */}
-          <div className="space-y-4 bg-gray-950/60 p-4 border border-gray-800 rounded-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Key className="w-4 h-4" /> 3. Client Specific Supabase Keys & Direct Connection
-              </h3>
-              <span className="text-[10px] text-gray-400">Optional for Client Cron Keep-Alive</span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Client Supabase URL (Target for Cron Job)</label>
-              <input
-                type="url"
-                name="supabase_url"
-                placeholder="https://xyz-client.supabase.co"
-                value={formData.supabase_url}
-                onChange={handleChange}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 font-mono text-xs text-white focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Client Publishable Key</label>
-                <input
-                  type="text"
-                  name="publishable_key"
-                  placeholder="sb_publishable_client_..."
-                  value={formData.publishable_key}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 font-mono text-xs text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Client Database Password</label>
-                <input
-                  type="text"
-                  name="supabase_password"
-                  placeholder="Client Database Password"
-                  value={formData.supabase_password}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 font-mono text-xs text-amber-300 focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Client Direct Connection String (PostgreSQL)</label>
-              <input
-                type="text"
-                name="connection_string"
-                placeholder="postgresql://postgres:[PASSWORD]@db.xyz-client.supabase.co:5432/postgres"
-                value={formData.connection_string}
-                onChange={handleChange}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 font-mono text-xs text-purple-300 focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Client CLI Setup Commands</label>
-              <input
-                type="text"
-                name="cli_setup"
-                placeholder="supabase link --project-ref xyz-client"
-                value={formData.cli_setup}
-                onChange={handleChange}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 font-mono text-xs text-emerald-300 focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Client anon_key</label>
-              <textarea
-                rows={2}
-                name="anon_key"
-                placeholder="eyJhbGciOiJI... (Client anon key)"
-                value={formData.anon_key}
-                onChange={handleChange}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl p-3 font-mono text-xs text-gray-300 focus:border-emerald-500 focus:outline-none resize-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Client service_role_key</label>
-              <textarea
-                rows={2}
-                name="service_role_key"
-                placeholder="eyJhbGciOiJI... (Client service role key)"
-                value={formData.service_role_key}
-                onChange={handleChange}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl p-3 font-mono text-xs text-red-300 focus:border-emerald-500 focus:outline-none resize-none"
-              />
-            </div>
-          </div>
-
-          {/* Section 4: Cron Job Scheduling & Validation Frame */}
-          <div className="bg-gradient-to-r from-blue-950/40 via-gray-900 to-gray-950 border border-blue-500/30 rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-400" />
-                <span className="text-xs font-bold text-white uppercase tracking-wider">4. Cron Job Keep-Alive Scheduling Target</span>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="cron_enabled"
-                  checked={formData.cron_enabled}
-                  onChange={handleChange}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-              </label>
-            </div>
-
-            {hasClientUrl ? (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs space-y-1">
-                <div className="flex items-center gap-2 font-bold text-emerald-400">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Cron Job Target URL Ready:</span>
+          {/* TAB 1: BASIC & BILLING */}
+          {activeTab === 'basic' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-emerald-600" /> Client Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="client_name"
+                    required
+                    placeholder="e.g. Asif Sadiq"
+                    value={formData.client_name}
+                    onChange={handleChange}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 font-medium"
+                  />
                 </div>
-                <div className="font-mono text-[11px] text-gray-200 break-all pl-6">
-                  {formData.supabase_url.replace(/\/$/, '')}/rest/v1/
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp / Phone *
+                  </label>
+                  <input
+                    type="text"
+                    name="client_phone"
+                    required
+                    placeholder="03212223333"
+                    value={formData.client_phone}
+                    onChange={handleChange}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600" /> Client Location / City
+                  </label>
+                  <input
+                    type="text"
+                    name="client_location"
+                    placeholder="e.g. Karachi, Lahore, Dubai"
+                    value={formData.client_location}
+                    onChange={handleChange}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-emerald-600" /> Website Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="website_name"
+                    required
+                    placeholder="e.g. Imanis"
+                    value={formData.website_name}
+                    onChange={handleWebsiteNameChange}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Link className="w-3.5 h-3.5 text-emerald-600" /> Website URL *
+                  </label>
+                  <input
+                    type="url"
+                    name="website_link"
+                    required
+                    placeholder="https://imanis.pk"
+                    value={formData.website_link}
+                    onChange={handleChange}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 font-medium font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Key className="w-3.5 h-3.5 text-emerald-600" /> Site Key *
+                  </label>
+                  <input
+                    type="text"
+                    name="site_key"
+                    required
+                    value={formData.site_key}
+                    onChange={handleChange}
+                    className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Monthly Price (PKR)
+                  </label>
+                  <input
+                    type="number"
+                    name="monthly_price_pkr"
+                    placeholder="2500"
+                    value={formData.monthly_price_pkr}
+                    onChange={handleChange}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Payment Status
+                  </label>
+                  <select
+                    name="payment_status"
+                    value={formData.payment_status}
+                    onChange={handleChange}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="paid">✓ Paid / Cleared</option>
+                    <option value="pending">⏳ Pending Payment</option>
+                    <option value="overdue">✖ Overdue</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-600" /> Subscription Expiry Date *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    name="expiry_date"
+                    required
+                    value={formData.expiry_date}
+                    onChange={handleChange}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-indigo-600" /> Referred by Sub-Admin / Affiliate
+                  </label>
+                  <select
+                    name="affiliate_id"
+                    value={formData.affiliate_id}
+                    onChange={handleChange}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="">Direct Client (No Sub-Admin)</option>
+                    {affiliates.map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.full_name} ({a.username}) — ₨ {a.commission_amount || 500}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            ) : (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs space-y-1">
-                <div className="flex items-center gap-2 font-bold text-amber-400">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>No Client Supabase URL Entered:</span>
+            </div>
+          )}
+
+          {/* TAB 2: DOMAIN TRACKER */}
+          {activeTab === 'domain' && (
+            <div className="space-y-4 animate-fade-in p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+              <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                <Globe className="w-4 h-4 text-emerald-600" />
+                <span>Domain Registration & Expiry Management</span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Track client domain expiration so you can send early renewal reminders before the domain drops.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Domain Name</label>
+                  <input
+                    type="text"
+                    name="domain_name"
+                    placeholder="e.g. imanis.pk"
+                    value={formData.domain_name}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
-                <div className="text-[11px] text-gray-300 pl-6">
-                  Cron Job will NOT be created until you enter your client's specific Supabase URL above.
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Domain Registrar</label>
+                  <input
+                    type="text"
+                    name="domain_registrar"
+                    placeholder="e.g. PKNIC, Namecheap, GoDaddy"
+                    value={formData.domain_registrar}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Domain Purchase Date</label>
+                  <input
+                    type="date"
+                    name="domain_purchase_date"
+                    value={formData.domain_purchase_date}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Domain Expiry Date</label>
+                  <input
+                    type="date"
+                    name="domain_expiry_date"
+                    value={formData.domain_expiry_date}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                  />
                 </div>
               </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1 flex items-center justify-between">
-                <span>cron-job.org API Key (Master Account Key)</span>
-              </label>
-              <input
-                type="text"
-                name="cron_api_key"
-                value={formData.cron_api_key}
-                onChange={handleChange}
-                placeholder="rN7d6WZ/OoPrjWC/RTeOy20WZLLHhEPwKdg6PSer1O8="
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 font-mono text-xs text-blue-300 focus:border-blue-500 focus:outline-none"
-              />
             </div>
+          )}
 
-            <div className="p-3 bg-gray-950 rounded-xl border border-blue-500/30 space-y-1.5">
-              <div className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Generated Cron Job Email Notification Title:</div>
-              <div className="p-2.5 bg-gray-900 rounded-lg border border-gray-800 font-mono text-xs text-emerald-300 break-all">
-                {cronTitlePreview}
+          {/* TAB 3: ACCOUNTS & CREDENTIALS */}
+          {activeTab === 'accounts' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                  Associated Platform Accounts (Emails & Notes)
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Vercel Account Email</label>
+                    <input
+                      type="text"
+                      name="vercel_email"
+                      placeholder="e.g. client@vercel.com"
+                      value={formData.vercel_email}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Central DB Account Email</label>
+                    <input
+                      type="text"
+                      name="supabase_email"
+                      placeholder="e.g. client@account.com"
+                      value={formData.supabase_email}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">GitHub Account Email</label>
+                    <input
+                      type="text"
+                      name="github_email"
+                      placeholder="e.g. dev@github.com"
+                      value={formData.github_email}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Cloudflare Account Email</label>
+                    <input
+                      type="text"
+                      name="cloudflare_email"
+                      placeholder="e.g. admin@cloudflare.com"
+                      value={formData.cloudflare_email}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Cron-Job.org Account Email</label>
+                    <input
+                      type="text"
+                      name="cronjob_email"
+                      placeholder="e.g. digizier@gmail.com"
+                      value={formData.cronjob_email}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                  Hosting, Cloudflare, GitHub & Resend Credentials
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Hosting / Webmail Email</label>
+                    <input
+                      type="text"
+                      name="hosting_email"
+                      placeholder="info@client.com"
+                      value={formData.hosting_email}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Hosting / Webmail Password</label>
+                    <input
+                      type="text"
+                      name="hosting_password"
+                      placeholder="Email password"
+                      value={formData.hosting_password}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">GitHub Repo URL</label>
+                    <input
+                      type="text"
+                      name="github_repo_url"
+                      placeholder="https://github.com/..."
+                      value={formData.github_repo_url}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Cloudflare API Key / Token</label>
+                    <input
+                      type="text"
+                      name="cloudflare_api_key"
+                      placeholder="CF Global API Key"
+                      value={formData.cloudflare_api_key}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Resend API Key</label>
+                    <input
+                      type="text"
+                      name="resend_api_key"
+                      placeholder="re_xxxxxxxx"
+                      value={formData.resend_api_key}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Resend Sender Email</label>
+                    <input
+                      type="text"
+                      name="resend_from_email"
+                      placeholder="onboarding@resend.dev"
+                      value={formData.resend_from_email}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Footer Actions */}
-          <div className="mt-6 pt-4 border-t border-gray-800 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl font-medium text-sm transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-emerald-950/30 transition disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving Client & Accounts...' : (client ? 'Update Client & Accounts' : 'Create Client Website')}
-            </button>
+          {/* TAB 4: CLOUD DB & CRON KEEP-ALIVE */}
+          {activeTab === 'supabase' && (
+            <div className="space-y-4 animate-fade-in p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-emerald-600" />
+                  <span>Client Cloud Database Project & Keep-Alive Target</span>
+                </span>
+                <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  Universal /storage/v1/status
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Client Cloud Database URL</label>
+                  <input
+                    type="url"
+                    name="supabase_url"
+                    placeholder="https://xyzclient.database.co"
+                    value={formData.supabase_url}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Anon / Public Key</label>
+                  <input
+                    type="text"
+                    name="anon_key"
+                    placeholder="eyJhbGciOi..."
+                    value={formData.anon_key}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Service Role Key</label>
+                  <input
+                    type="text"
+                    name="service_role_key"
+                    placeholder="eyJhbGciOi..."
+                    value={formData.service_role_key}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Database Master Password</label>
+                  <input
+                    type="text"
+                    name="supabase_password"
+                    placeholder="Database Password"
+                    value={formData.supabase_password}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Publishable Key</label>
+                  <input
+                    type="text"
+                    name="publishable_key"
+                    placeholder="sb_publishable_..."
+                    value={formData.publishable_key}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="cron_enabled"
+                    checked={formData.cron_enabled}
+                    onChange={handleChange}
+                    className="rounded text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span className="text-xs font-bold text-slate-800">
+                    Enable Daily 12:00 AM Midnight Keep-Alive Cron Job on cron-job.org
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: LOCK MODES & NOTICE */}
+          {activeTab === 'advanced' && (
+            <div className="space-y-4 animate-fade-in p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+              <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Power className="w-4 h-4 text-emerald-600" />
+                  <span>Lock Mode Customization & Active Status</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-normal">Layer 1 Security Shield</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Select First-Layer Lock Mode</label>
+                  <select
+                    name="lock_mode"
+                    value={formData.lock_mode || 'payment'}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="payment">🔴 Payment Overdue Lock Screen (Nadir Habib Payment Remaining)</option>
+                    <option value="under_construction">🔵 Under Construction / Maintenance Screen</option>
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {formData.lock_mode === 'under_construction' ? 'Displays blue maintenance screen with tools icon.' : 'Displays red payment recovery screen with WhatsApp link.'}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Master Website Live Status</label>
+                  <select
+                    name="status"
+                    value={formData.status ? 'true' : 'false'}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value === 'true' })}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="true">🟢 Permanent Active (Live Public Browsing)</option>
+                    <option value="false">🔴 Inactive / Locked / Under Construction</option>
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {formData.status ? 'Website is currently active and browsable.' : 'Website is locked and overlay screen is active.'}
+                  </p>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">Custom Lock Notice / Message</label>
+                    <span className="text-[10px] text-slate-400">Supports dynamic placeholders</span>
+                  </div>
+                  <textarea
+                    name="custom_notice"
+                    rows={2}
+                    placeholder="e.g. Dear {client_name}, {website_name} is currently undergoing scheduled maintenance..."
+                    value={formData.custom_notice || ''}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:border-emerald-500 font-medium"
+                  />
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px]">
+                    <span className="text-slate-400">Click to insert:</span>
+                    {['{client_name}', '{website_name}', '{phone}', '{admin_phone}'].map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, custom_notice: (prev.custom_notice ? prev.custom_notice + ' ' : '') + tag }))}
+                        className="bg-white hover:bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-mono transition"
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Form Actions Footer */}
+          <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+            <span className="text-xs text-slate-400 font-mono">
+              Key: {formData.site_key}
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex items-center gap-1.5 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saving ? 'Saving Client...' : (client ? 'Save Updates' : 'Add Client Website')}</span>
+              </button>
+            </div>
           </div>
 
         </form>
+
       </div>
     </div>
   );

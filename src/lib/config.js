@@ -5,8 +5,9 @@ export const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3
 export const CRON_JOB_API_KEY = 'rN7d6WZ/OoPrjWC/RTeOy20WZLLHhEPwKdg6PSer1O8=';
 
 export const ADMIN_CONTACT = {
-  name: 'Nader Habib',
+  name: 'Nadir Habib',
   phone: '03222685868',
   whatsapp: '923222685868',
-  brand: 'DG ZIYAR / Nader Habib Protection System'
+  brand: 'Digizier • Nadir Habib Protection System',
+  role: 'Digizier Owner'
 };

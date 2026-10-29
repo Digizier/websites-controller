@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Website Controller Pro • Nader Habib & DG ZIYAR</title>
+    <title>Website Controller Pro • Nadir Habib (Digizier Owner)</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,7 +15,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
-        darkMode: 'class',
         theme: {
           extend: {
             fontFamily: {
@@ -24,8 +23,12 @@
             },
             colors: {
               emerald: {
+                50: '#ecfdf5',
+                100: '#d1fae5',
+                200: '#a7f3d0',
                 500: '#10b981',
                 600: '#059669',
+                700: '#047857',
               }
             }
           }
@@ -33,7 +36,7 @@
       }
     </script>
   </head>
-  <body class="bg-gray-950 text-gray-100 min-h-screen antialiased selection:bg-emerald-500 selection:text-white">
+  <body class="bg-slate-50 text-slate-900 min-h-screen antialiased selection:bg-emerald-500 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
