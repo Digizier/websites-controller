@@ -4,15 +4,37 @@ import { X, CheckCircle2, AlertTriangle, ShieldCheck, Hammer, Lock, Power, Spark
 export default function ConfirmStatusModal({ client, isOpen, targetAction: initialAction, onClose, onConfirm }) {
   if (!isOpen || !client) return null;
 
+  const DEFAULT_CONSTRUCTION_MSG = 'This website is currently undergoing scheduled maintenance or system upgrades. Access will be restored shortly.';
+  const DEFAULT_PAYMENT_MSG = 'Your monthly website hosting subscription is currently locked. To unlock and restore access immediately, please contact Nadir Habib.';
+
   // Selected mode: 'activate', 'under_construction', 'lock_payment'
   const [selectedMode, setSelectedMode] = useState(() => {
     if (initialAction) return initialAction;
-    if (client.status === false && client.lock_mode === 'under_construction') return 'activate';
+    if (client.status === false && client.lock_mode === 'under_construction') return 'under_construction';
+    if (client.status === false && client.lock_mode === 'payment') return 'lock_payment';
     return client.status ? 'under_construction' : 'activate';
   });
 
-  const [customNotice, setCustomNotice] = useState(client.custom_notice || 'This website is currently undergoing scheduled maintenance or system upgrades.');
+  const [customNotice, setCustomNotice] = useState(() => {
+    if (client.custom_notice && client.custom_notice.trim()) {
+      return client.custom_notice;
+    }
+    return (initialAction === 'lock_payment' || client.lock_mode === 'payment') ? DEFAULT_PAYMENT_MSG : DEFAULT_CONSTRUCTION_MSG;
+  });
   const [confirmed, setConfirmed] = useState(false);
+
+  const handleModeChange = (mode) => {
+    setSelectedMode(mode);
+    if (mode === 'lock_payment') {
+      if (!customNotice || customNotice.toLowerCase().includes('maintenance') || customNotice.toLowerCase().includes('undergoing scheduled')) {
+        setCustomNotice(DEFAULT_PAYMENT_MSG);
+      }
+    } else if (mode === 'under_construction') {
+      if (!customNotice || customNotice.toLowerCase().includes('hosting subscription') || customNotice.toLowerCase().includes('payment')) {
+        setCustomNotice(DEFAULT_CONSTRUCTION_MSG);
+      }
+    }
+  };
 
   const handleAction = () => {
     onConfirm(selectedMode, customNotice);
@@ -56,7 +78,7 @@ export default function ConfirmStatusModal({ client, isOpen, targetAction: initi
 
           {/* 1. Live & Active */}
           <div 
-            onClick={() => setSelectedMode('activate')}
+            onClick={() => handleModeChange('activate')}
             className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-start gap-3 ${
               selectedMode === 'activate' 
                 ? 'bg-emerald-50/70 border-emerald-400 shadow-xs' 
@@ -67,7 +89,7 @@ export default function ConfirmStatusModal({ client, isOpen, targetAction: initi
               type="radio" 
               name="lock_choice" 
               checked={selectedMode === 'activate'} 
-              onChange={() => setSelectedMode('activate')}
+              onChange={() => handleModeChange('activate')}
               className="mt-1 text-emerald-600 focus:ring-emerald-500" 
             />
             <div>
@@ -83,7 +105,7 @@ export default function ConfirmStatusModal({ client, isOpen, targetAction: initi
 
           {/* 2. Under Construction Screen */}
           <div 
-            onClick={() => setSelectedMode('under_construction')}
+            onClick={() => handleModeChange('under_construction')}
             className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-start gap-3 ${
               selectedMode === 'under_construction' 
                 ? 'bg-blue-50/70 border-blue-400 shadow-xs' 
@@ -94,7 +116,7 @@ export default function ConfirmStatusModal({ client, isOpen, targetAction: initi
               type="radio" 
               name="lock_choice" 
               checked={selectedMode === 'under_construction'} 
-              onChange={() => setSelectedMode('under_construction')}
+              onChange={() => handleModeChange('under_construction')}
               className="mt-1 text-blue-600 focus:ring-blue-500" 
             />
             <div>
@@ -110,7 +132,7 @@ export default function ConfirmStatusModal({ client, isOpen, targetAction: initi
 
           {/* 3. Payment Overdue Lock */}
           <div 
-            onClick={() => setSelectedMode('lock_payment')}
+            onClick={() => handleModeChange('lock_payment')}
             className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-start gap-3 ${
               selectedMode === 'lock_payment' 
                 ? 'bg-rose-50/70 border-rose-400 shadow-xs' 
@@ -121,7 +143,7 @@ export default function ConfirmStatusModal({ client, isOpen, targetAction: initi
               type="radio" 
               name="lock_choice" 
               checked={selectedMode === 'lock_payment'} 
-              onChange={() => setSelectedMode('lock_payment')}
+              onChange={() => handleModeChange('lock_payment')}
               className="mt-1 text-rose-600 focus:ring-rose-500" 
             />
             <div>
@@ -144,27 +166,55 @@ export default function ConfirmStatusModal({ client, isOpen, targetAction: initi
                 <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Custom Notice / Message</span>
               </label>
-              <span className="text-[10px] text-slate-400">Supports Dynamic Variables</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCustomNotice(selectedMode === 'lock_payment' ? DEFAULT_PAYMENT_MSG : DEFAULT_CONSTRUCTION_MSG)}
+                  className="text-[10px] text-emerald-700 font-bold hover:underline"
+                >
+                  Reset Default
+                </button>
+                <span className="text-[10px] text-slate-400">• Supports Variables</span>
+              </div>
             </div>
             <textarea
               rows="3"
               value={customNotice}
               onChange={(e) => setCustomNotice(e.target.value)}
-              placeholder="e.g. Dear {client_name}, {website_name} is undergoing scheduled maintenance..."
+              placeholder="e.g. Dear {client_name}, your website hosting access is currently locked..."
               className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 font-medium"
             />
-            <div className="flex flex-wrap gap-1 text-[10px]">
-              <span className="text-slate-400">Click to insert:</span>
-              {['{client_name}', '{website_name}', '{phone}', '{admin_phone}'].map(tag => (
+            <div className="flex flex-wrap items-center justify-between gap-1 text-[10px]">
+              <div className="flex flex-wrap gap-1 items-center">
+                <span className="text-slate-400">Insert tag:</span>
+                {['{client_name}', '{website_name}', '{phone}', '{admin_phone}'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setCustomNotice(prev => prev + ' ' + tag)}
+                    className="bg-white hover:bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200 font-mono transition"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-1.5">
                 <button
-                  key={tag}
                   type="button"
-                  onClick={() => setCustomNotice(prev => prev + ' ' + tag)}
-                  className="bg-white hover:bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200 font-mono transition"
+                  onClick={() => setCustomNotice(DEFAULT_PAYMENT_MSG)}
+                  className="text-rose-600 hover:text-rose-700 font-semibold cursor-pointer"
                 >
-                  {tag}
+                  Payment Msg
                 </button>
-              ))}
+                <span className="text-slate-300">|</span>
+                <button
+                  type="button"
+                  onClick={() => setCustomNotice(DEFAULT_CONSTRUCTION_MSG)}
+                  className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
+                >
+                  Maintenance Msg
+                </button>
+              </div>
             </div>
           </div>
         )}

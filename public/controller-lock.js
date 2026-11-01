@@ -95,7 +95,7 @@
   function renderLockOverlay(record, mode = 'payment') {
     const adminPhone = (record && record.admin_whatsapp && record.admin_whatsapp.trim()) || WHATSAPP_NUM;
     const adminName = (record && record.admin_name && record.admin_name.trim()) || 'Nadir Habib';
-    const rawDigits = adminPhone.replace(/\D/g, '');
+    const rawDigits = adminPhone.replace(/[^0-9]/g, '');
     const intlPhone = rawDigits.startsWith('92') ? rawDigits : (rawDigits.startsWith('0') ? '92' + rawDigits.slice(1) : '92' + rawDigits);
     const siteName = (record && record.website_name) || 'Website';
 
