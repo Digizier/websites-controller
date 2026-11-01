@@ -28,8 +28,8 @@ export default function ScriptGeneratorModal({ client, onClose }) {
     }
 
     try {
-      const ts = Date.now();
-      const url = \`\${SUPABASE_URL}/rest/v1/client_websites?site_key=\${encodeURIComponent(SITE_KEY)}&select=*&_ts=\${ts}\`;
+      const fields = 'status,expiry_date,lock_mode,custom_notice,admin_name,admin_whatsapp,billing_cycle,website_name,client_name';
+      const url = \`\${SUPABASE_URL}/rest/v1/client_websites?site_key=eq.\${encodeURIComponent(SITE_KEY)}&select=\${fields}\`;
       const res = await fetch(url, {
         method: 'GET',
         cache: 'no-store',
@@ -40,7 +40,10 @@ export default function ScriptGeneratorModal({ client, onClose }) {
           'Pragma': 'no-cache'
         }
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn('[Website-Controller] Access check failed with HTTP ' + res.status);
+        return;
+      }
       const data = await res.json();
       
       if (data && data.length > 0) {
@@ -134,7 +137,7 @@ export default function ScriptGeneratorModal({ client, onClose }) {
           </div>
         \`;
       }
-      document.documentElement.appendChild(overlay);
+      (document.body || document.documentElement).appendChild(overlay);
     }
 
     if (document.readyState === 'loading') {
@@ -162,8 +165,8 @@ Target Site Key: "${siteKey}"
 My Website Name: "${websiteName}"
 
 --- CRITICAL SUPABASE POSTGREST QUERY SYNTAX REQUIREMENT ---
-Please query the Supabase table client_websites using the PostgREST equality filter site_key=eq.${siteKey} (e.g. ${SUPABASE_URL}/rest/v1/client_websites?site_key=eq.${encodeURIComponent(siteKey)}&select=*). 
-Note that "eq." is strictly required by Supabase REST API syntax, and the table name must be "client_websites". Always include &_ts=\${Date.now()} and cache: "no-store" with no-cache headers to prevent mobile/browser caching lags.
+Please query the Supabase table client_websites using the PostgREST equality filter site_key=eq.${siteKey} (e.g. ${SUPABASE_URL}/rest/v1/client_websites?site_key=eq.${encodeURIComponent(siteKey)}&select=status,expiry_date,lock_mode,custom_notice,admin_name,admin_whatsapp,billing_cycle,website_name,client_name). 
+Note that "eq." is strictly required by Supabase REST API syntax, and the table name must be "client_websites". Always include cache: "no-store" with no-cache headers to prevent mobile/browser caching lags.
 
 --- INSTRUCTION FOR ANTIGRAVITY (MULTI-FRAMEWORK INTEGRATION) ---
 
@@ -172,14 +175,14 @@ Do NOT use Next.js <Script strategy="beforeInteractive"> component as it defers 
 Instead, open src/app/layout.tsx (or src/pages/_document.tsx) and insert a raw HTML <script dangerouslySetInnerHTML> inside the <head> tag:
 
 <head>
-  <script dangerouslySetInnerHTML={{ __html: \`${rawJsLogic}\` }} />
+  <script data-cfasync="false" data-site-key="${siteKey}" dangerouslySetInnerHTML={{ __html: \`${rawJsLogic}\` }} />
 </head>
 
 [CASE B: IF VITE / REACT / HTML / PHP / WORDPRESS]
 Open index.html (or header layout) and paste this exact self-contained <script> tag directly inside the <head> section:
 
 <!-- NADIR HABIB SOLID FIRST-LAYER PROTECTION -->
-<script data-site-key="${siteKey}">
+<script data-cfasync="false" data-site-key="${siteKey}">
 ${rawJsLogic}
 </script>
 

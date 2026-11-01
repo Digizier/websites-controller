@@ -37,9 +37,8 @@
 
   async function checkWebsiteStatus() {
     try {
-      // ANTI-CACHE URL with timestamp parameter so browser NEVER serves stale locked data
-      const timestamp = Date.now();
-      const endpoint = `${SUPABASE_URL}/rest/v1/client_websites?site_key=eq.${encodeURIComponent(SITE_KEY)}&select=*&_ts=${timestamp}`;
+      const fields = 'status,expiry_date,lock_mode,custom_notice,admin_name,admin_whatsapp,billing_cycle,website_name,client_name';
+      const endpoint = `${SUPABASE_URL}/rest/v1/client_websites?site_key=eq.${encodeURIComponent(SITE_KEY)}&select=${fields}`;
       
       const res = await fetch(endpoint, {
         method: 'GET',
@@ -182,7 +181,7 @@
         `;
       }
 
-      document.documentElement.appendChild(overlay);
+      (document.body || document.documentElement).appendChild(overlay);
     }
 
     if (document.readyState === 'loading') {
