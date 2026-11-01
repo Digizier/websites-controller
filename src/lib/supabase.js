@@ -381,7 +381,19 @@ export async function updateMasterProfile(updates) {
       .select()
       .single();
 
-    if (!error && data) return data;
+    if (!error && data) {
+      // Sync master contact details to all master client websites automatically!
+      await supabase
+        .from('client_websites')
+        .update({
+          admin_whatsapp: updates.phone || updates.whatsapp,
+          admin_name: updates.name,
+          admin_brand: updates.brand
+        })
+        .is('affiliate_id', null);
+
+      return data;
+    }
   } catch (err) {
     console.error('[Update Master Profile Error]', err);
   }

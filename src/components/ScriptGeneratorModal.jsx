@@ -53,13 +53,24 @@ export default function ScriptGeneratorModal({ client, onClose }) {
         const isExpired = now > expiry;
         const isDisabled = item.status === false;
 
-        if (item.lock_mode === 'under_construction' || (isDisabled && item.lock_mode === 'under_construction')) {
-          execLockOverlay(item.billing_cycle || 'monthly', 'under_construction', item.custom_notice, item);
+        const adminPhone = (item.admin_whatsapp && item.admin_whatsapp.trim()) || WHATSAPP_NUM;
+        const adminName = (item.admin_name && item.admin_name.trim()) || 'Nadir Habib';
+        const rawDigits = adminPhone.replace(/\D/g, '');
+        const intlPhone = rawDigits.startsWith('92') ? rawDigits : (rawDigits.startsWith('0') ? '92' + rawDigits.slice(1) : '92' + rawDigits);
+        const siteName = item.website_name || '${websiteName}';
+
+        // 1. Under Construction Mode
+        if (isDisabled && item.lock_mode === 'under_construction') {
+          const underConstructionWhatsApp = \`https://wa.me/\${intlPhone}?text=\${encodeURIComponent('Hello ' + adminName + ', I am inquiring about the maintenance status of ' + siteName + '.')}\`;
+          execLockOverlay(item.billing_cycle || 'monthly', 'under_construction', item.custom_notice, item, adminPhone, adminName, underConstructionWhatsApp);
           return;
         }
 
-        if (isExpired || isDisabled) {
-          execLockOverlay(item.billing_cycle || 'monthly', 'payment', item.custom_notice, item);
+        // 2. Payment Overdue Lock Mode
+        if (isDisabled || isExpired) {
+          const paymentWhatsApp = \`https://wa.me/\${intlPhone}?text=\${encodeURIComponent('Hello ' + adminName + ', I want to clear the payment for ' + siteName + ' and restore access.')}\`;
+          execLockOverlay(item.billing_cycle || 'monthly', 'payment', item.custom_notice, item, adminPhone, adminName, paymentWhatsApp);
+          return;
         }
       }
     } catch (e) {
@@ -67,18 +78,22 @@ export default function ScriptGeneratorModal({ client, onClose }) {
     }
   }
 
-  function formatNotice(notice, item, fallback) {
+  function formatNotice(notice, item, fallback, adminPhone) {
     let text = (notice && notice.trim()) ? notice : fallback;
     if (!text) return '';
     return text
       .replace(/\\{client_name\\}|\\{name\\}/gi, (item && item.client_name) || 'Valued Client')
       .replace(/\\{website_name\\}|\\{website\\}/gi, (item && item.website_name) || '')
       .replace(/\\{client_phone\\}|\\{phone\\}/gi, (item && item.client_phone) || '')
-      .replace(/\\{admin_phone\\}/gi, WHATSAPP_NUM)
+      .replace(/\\{admin_phone\\}/gi, adminPhone || WHATSAPP_NUM)
       .replace(/\\{expiry_date\\}|\\{expiry\\}/gi, (item && item.expiry_date) ? new Date(item.expiry_date).toLocaleDateString('en-GB') : '');
   }
 
-  function execLockOverlay(billingCycle, mode, rawNotice, item) {
+  function execLockOverlay(billingCycle, mode, rawNotice, item, adminPhone, adminName, whatsappUrl) {
+    const displayPhone = adminPhone || WHATSAPP_NUM;
+    const displayName = adminName || 'Nadir Habib';
+    const finalWhatsAppUrl = whatsappUrl || WHATSAPP_LINK;
+
     function inject() {
       if (document.getElementById('nader-habib-lock-overlay')) return;
       document.documentElement.style.overflow = 'hidden';
@@ -90,9 +105,11 @@ export default function ScriptGeneratorModal({ client, onClose }) {
 
       const cycle = billingCycle === 'yearly' ? 'Yearly' : 'Monthly';
 
+      const whatsappSvg = '<svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"#ffffff\" style=\"flex-shrink:0;\"><path d=\"M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.41a8.17 8.17 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.64c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.98-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.14-.25-.02-.39.11-.51.11-.11.25-.29.37-.43.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.07-.12-.23-.19-.48-.31z\"/></svg>';
+
       if (mode === 'under_construction') {
         const defaultMsg = 'This website is currently undergoing scheduled maintenance or system upgrades. Access will be restored shortly.';
-        const customNotice = formatNotice(rawNotice, item, defaultMsg);
+        const customNotice = formatNotice(rawNotice, item, defaultMsg, displayPhone);
 
         overlay.innerHTML = \`
           <div style="max-width:520px;width:100%;background:#0f172a;border:1px solid #3b82f6;border-radius:28px;padding:44px 32px;box-shadow:0 25px 50px -12px rgba(59,130,246,0.25);backdrop-filter:blur(16px);">
@@ -102,15 +119,19 @@ export default function ScriptGeneratorModal({ client, onClose }) {
             <span style="background:rgba(59,130,246,0.18);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:6px 16px;border-radius:9999px;display:inline-block;margin-bottom:16px;">
               Maintenance & Development Mode
             </span>
-            <h1 style="font-size:26px;font-weight:800;color:#ffffff;margin:0 0 12px 0;">Website Under Construction</h1>
+            <div style="font-size:26px;font-weight:800;color:#ffffff;margin:0 0 12px 0;">Website Under Construction</div>
             <p style="font-size:15px;color:#94a3b8;line-height:1.6;margin:0 0 24px 0;">
               \${customNotice}
             </p>
-            <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:16px;margin-bottom:24px;">
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:16px;margin-bottom:16px;">
               <div style="font-size:13px;color:#94a3b8;margin-bottom:4px;">Administration Contact</div>
-              <div style="font-size:20px;font-weight:700;color:#38bdf8;">\${WHATSAPP_NUM}</div>
+              <div style="font-size:20px;font-weight:700;color:#38bdf8;">\${displayPhone}</div>
             </div>
-            <div style="margin-top:16px;font-size:12px;color:#64748b;">DIGIZIER • Quality Assurance System</div>
+            <a href="\${finalWhatsAppUrl}" target="_blank" rel="noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 24px;border-radius:14px;box-shadow:0 10px 20px -5px rgba(37,211,102,0.4);transition:all 0.2s;">
+              \${whatsappSvg}
+              Contact on WhatsApp
+            </a>
+            <div style="margin-top:20px;font-size:12px;color:#64748b;">DIGIZIER • Quality Assurance System</div>
           </div>
         \`;
       } else {
@@ -122,16 +143,17 @@ export default function ScriptGeneratorModal({ client, onClose }) {
             <span style="background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.35);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:6px 16px;border-radius:9999px;display:inline-block;margin-bottom:16px;">
               Website Access Locked • \${cycle} Payment Overdue
             </span>
-            <h1 style="font-size:26px;font-weight:800;color:#ffffff;margin:0 0 12px 0;">Nadir Habib Payment Remaining</h1>
+            <div style="font-size:26px;font-weight:800;color:#ffffff;margin:0 0 12px 0;">\${displayName} Payment Remaining</div>
             <p style="font-size:15px;color:#94a3b8;line-height:1.6;margin:0 0 24px 0;">
-              \${customNotice || 'Your hosting subscription access is locked. Please contact Nadir Habib on WhatsApp to pay remaining dues and restore access.'}
+              \${customNotice || 'Your hosting subscription access is locked. Please contact ' + displayName + ' on WhatsApp to pay remaining dues and restore access.'}
             </p>
-            <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:16px;margin-bottom:24px;">
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:16px;margin-bottom:16px;">
               <div style="font-size:13px;color:#94a3b8;margin-bottom:4px;">Direct WhatsApp Support</div>
-              <div style="font-size:20px;font-weight:700;color:#10b981;">\${WHATSAPP_NUM}</div>
+              <div style="font-size:20px;font-weight:700;color:#25D366;">\${displayPhone}</div>
             </div>
-            <a href="\${WHATSAPP_LINK}" target="_blank" rel="noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#10b981;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:14px 24px;border-radius:14px;box-shadow:0 10px 20px -5px rgba(16,185,129,0.4);">
-              Contact Nadir Habib on WhatsApp
+            <a href="\${finalWhatsAppUrl}" target="_blank" rel="noreferrer" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:14px 24px;border-radius:14px;box-shadow:0 10px 20px -5px rgba(37,211,102,0.4);transition:all 0.2s;">
+              \${whatsappSvg}
+              Contact \${displayName} on WhatsApp
             </a>
             <div style="margin-top:20px;font-size:12px;color:#64748b;">DIGIZIER • Premium Controller System</div>
           </div>
