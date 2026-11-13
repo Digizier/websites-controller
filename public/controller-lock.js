@@ -13,8 +13,8 @@
   const SITE_KEY = SCRIPT_EL ? SCRIPT_EL.getAttribute('data-site-key') : (window.NADER_SITE_KEY || 'site_estate_pro');
   const FORCE_LOCK = SCRIPT_EL ? SCRIPT_EL.getAttribute('data-force-lock') === 'true' : false;
   
-  const SUPABASE_URL = 'https://pggolsqtamtkafrpigfo.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnZ29sc3F0YW10a2FmcnBpZ2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNDE3ODgsImV4cCI6MjEwMDgxNzc4OH0.98_YWbdZ6hlpMiujbiWLYPRYlrvnx2_I31FyGILixHs';
+  const STATUS_PRIMARY = 'https://status.digizier.com';
+  const STATUS_BACKUP = 'https://status.digizier.workers.dev';
   const WHATSAPP_NUM = '03222685868';
   const WHATSAPP_LINK = 'https://wa.me/923222685868?text=Hello%20Nadir%20Habib,%20I%20want%20to%20clear%20my%20website%20payment.';
 
@@ -28,61 +28,41 @@
     let text = (notice && notice.trim()) ? notice : fallback;
     if (!text) return '';
     return text
-      .replace(/\{client_name\}|\{name\}/gi, (record && record.client_name) || 'Valued Client')
-      .replace(/\{website_name\}|\{website\}/gi, (record && record.website_name) || '')
-      .replace(/\{client_phone\}|\{phone\}/gi, (record && record.client_phone) || '')
+      .replace(/\{client_name\}|\{name\}/gi, (record && (record.client_name || record.name)) || 'Valued Client')
+      .replace(/\{website_name\}|\{website\}/gi, (record && (record.website_name || record.site_name)) || '')
+      .replace(/\{client_phone\}|\{phone\}/gi, (record && (record.client_phone || record.phone)) || '')
       .replace(/\{admin_phone\}/gi, WHATSAPP_NUM)
       .replace(/\{expiry_date\}|\{expiry\}/gi, (record && record.expiry_date) ? new Date(record.expiry_date).toLocaleDateString('en-GB') : '');
   }
 
   async function checkWebsiteStatus() {
     try {
-      const fields = 'status,expiry_date,lock_mode,custom_notice,admin_name,admin_whatsapp,billing_cycle,website_name,client_name';
-      const endpoint = `${SUPABASE_URL}/rest/v1/client_websites?site_key=eq.${encodeURIComponent(SITE_KEY)}&select=${fields}`;
-      
-      const res = await fetch(endpoint, {
-        method: 'GET',
-        cache: 'no-store',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-
-      if (!res.ok) {
-        if (window.NADER_LOCK_TEST === true) {
-          renderLockOverlay({ billing_cycle: 'monthly', lock_mode: 'payment' });
-        }
-        return;
+      let data = null;
+      try {
+        const res = await fetch(`${STATUS_PRIMARY}/?site=${encodeURIComponent(SITE_KEY)}`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+        if (res.ok) data = await res.json();
+      } catch (err) {
+        try {
+          const backupRes = await fetch(`${STATUS_BACKUP}/?site=${encodeURIComponent(SITE_KEY)}`, {
+            method: 'GET',
+            cache: 'no-store'
+          });
+          if (backupRes.ok) data = await backupRes.json();
+        } catch (e2) {}
       }
 
-      const data = await res.json();
-      if (!data || data.length === 0) {
-        if (window.NADER_LOCK_TEST === true) {
-          renderLockOverlay({ billing_cycle: 'monthly', lock_mode: 'payment' });
+      if (data && data.locked) {
+        if (data.mode === 'under_construction') {
+          renderLockOverlay(data, 'under_construction');
+          return;
         }
-        return;
-      }
-
-      const record = data[0];
-      const now = new Date();
-      const expiry = new Date(record.expiry_date);
-      const isExpired = now > expiry;
-      const isDisabled = record.status === false;
-
-      // 1. Under Construction Mode
-      if (isDisabled && record.lock_mode === 'under_construction') {
-        renderLockOverlay(record, 'under_construction');
-        return;
-      }
-
-      // 2. Payment Overdue Lock Mode
-      if (isDisabled || isExpired) {
-        renderLockOverlay(record, 'payment');
-        return;
+        if (data.mode === 'payment') {
+          renderLockOverlay(data, 'payment');
+          return;
+        }
       }
     } catch (err) {
       console.error('[Website-Controller] Status check failed', err);

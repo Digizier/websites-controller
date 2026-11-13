@@ -15,8 +15,8 @@ export default function ScriptGeneratorModal({ client, onClose }) {
   // Upgraded self-contained JavaScript Logic with Anti-Cache & Dual-Mode (Under Construction / Payment Lock)
   const rawJsLogic = `(function() {
   const SITE_KEY = "${siteKey}";
-  const SUPABASE_URL = "${SUPABASE_URL}";
-  const SUPABASE_KEY = "${SUPABASE_ANON_KEY}";
+  const STATUS_PRIMARY = "https://status.digizier.com";
+  const STATUS_BACKUP = "https://status.digizier.workers.dev";
   const WHATSAPP_NUM = "${ADMIN_CONTACT.phone}";
   const WHATSAPP_LINK = "https://wa.me/${ADMIN_CONTACT.whatsapp}?text=Hi%20Nadir%20Habib,%20I%20want%20to%20unlock%20my%20website.";
   const isTestLock = typeof window !== 'undefined' && window.location && window.location.search && window.location.search.includes('lock=true');
@@ -28,48 +28,42 @@ export default function ScriptGeneratorModal({ client, onClose }) {
     }
 
     try {
-      const fields = 'status,expiry_date,lock_mode,custom_notice,admin_name,admin_whatsapp,billing_cycle,website_name,client_name';
-      const url = \`\${SUPABASE_URL}/rest/v1/client_websites?site_key=eq.\${encodeURIComponent(SITE_KEY)}&select=\${fields}\`;
-      const res = await fetch(url, {
-        method: 'GET',
-        cache: 'no-store',
-        headers: { 
-          'apikey': SUPABASE_KEY, 
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
-      if (!res.ok) {
-        console.warn('[Website-Controller] Access check failed with HTTP ' + res.status);
-        return;
+      let data = null;
+      try {
+        const res = await fetch(\`\${STATUS_PRIMARY}/?site=\${encodeURIComponent(SITE_KEY)}\`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+        if (res.ok) data = await res.json();
+      } catch (err) {
+        // Automatic Dual-Redundancy Fallback to workers.dev
+        try {
+          const backupRes = await fetch(\`\${STATUS_BACKUP}/?site=\${encodeURIComponent(SITE_KEY)}\`, {
+            method: 'GET',
+            cache: 'no-store'
+          });
+          if (backupRes.ok) data = await backupRes.json();
+        } catch (e2) {}
       }
-      const data = await res.json();
-      
-      if (data && data.length > 0) {
-        const item = data[0];
-        const now = new Date();
-        const expiry = new Date(item.expiry_date);
-        const isExpired = now > expiry;
-        const isDisabled = item.status === false;
 
-        const adminPhone = (item.admin_whatsapp && item.admin_whatsapp.trim()) || WHATSAPP_NUM;
-        const adminName = (item.admin_name && item.admin_name.trim()) || 'Nadir Habib';
-        const rawDigits = adminPhone.replace(/\D/g, '');
+      if (data && data.locked) {
+        const adminPhone = (data.admin_phone && data.admin_phone.trim()) || WHATSAPP_NUM;
+        const adminName = (data.admin_name && data.admin_name.trim()) || 'Nadir Habib';
+        const rawDigits = adminPhone.replace(/[^0-9]/g, '');
         const intlPhone = rawDigits.startsWith('92') ? rawDigits : (rawDigits.startsWith('0') ? '92' + rawDigits.slice(1) : '92' + rawDigits);
-        const siteName = item.website_name || '${websiteName}';
+        const siteName = data.site_name || '${websiteName}';
 
         // 1. Under Construction Mode
-        if (isDisabled && item.lock_mode === 'under_construction') {
+        if (data.mode === 'under_construction') {
           const underConstructionWhatsApp = \`https://wa.me/\${intlPhone}?text=\${encodeURIComponent('Hello ' + adminName + ', I am inquiring about the maintenance status of ' + siteName + '.')}\`;
-          execLockOverlay(item.billing_cycle || 'monthly', 'under_construction', item.custom_notice, item, adminPhone, adminName, underConstructionWhatsApp);
+          execLockOverlay(data.cycle || 'monthly', 'under_construction', data.custom_notice, data, adminPhone, adminName, underConstructionWhatsApp);
           return;
         }
 
         // 2. Payment Overdue Lock Mode
-        if (isDisabled || isExpired) {
+        if (data.mode === 'payment') {
           const paymentWhatsApp = \`https://wa.me/\${intlPhone}?text=\${encodeURIComponent('Hello ' + adminName + ', I want to clear the payment for ' + siteName + ' and restore access.')}\`;
-          execLockOverlay(item.billing_cycle || 'monthly', 'payment', item.custom_notice, item, adminPhone, adminName, paymentWhatsApp);
+          execLockOverlay(data.cycle || 'monthly', 'payment', data.custom_notice, data, adminPhone, adminName, paymentWhatsApp);
           return;
         }
       }
@@ -82,9 +76,9 @@ export default function ScriptGeneratorModal({ client, onClose }) {
     let text = (notice && notice.trim()) ? notice : fallback;
     if (!text) return '';
     return text
-      .replace(/\\{client_name\\}|\\{name\\}/gi, (item && item.client_name) || 'Valued Client')
-      .replace(/\\{website_name\\}|\\{website\\}/gi, (item && item.website_name) || '')
-      .replace(/\\{client_phone\\}|\\{phone\\}/gi, (item && item.client_phone) || '')
+      .replace(/\\{client_name\\}|\\{name\\}/gi, (item && (item.client_name || item.name)) || 'Valued Client')
+      .replace(/\\{website_name\\}|\\{website\\}/gi, (item && (item.website_name || item.site_name)) || '')
+      .replace(/\\{client_phone\\}|\\{phone\\}/gi, (item && (item.client_phone || item.phone)) || '')
       .replace(/\\{admin_phone\\}/gi, adminPhone || WHATSAPP_NUM)
       .replace(/\\{expiry_date\\}|\\{expiry\\}/gi, (item && item.expiry_date) ? new Date(item.expiry_date).toLocaleDateString('en-GB') : '');
   }
