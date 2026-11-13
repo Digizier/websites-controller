@@ -312,7 +312,7 @@ function ControllerDashboard({ authUser, onLogout }) {
       };
     }
 
-    await updateClientWebsite(client.id, updates);
+    await updateClientWebsite(client.id, { ...updates, site_key: client.site_key });
     setClients(prev => prev.map(c => c.id === client.id ? { ...c, ...updates } : c));
     setStatusConfirmTarget(null);
   };

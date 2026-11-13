@@ -84,6 +84,18 @@ export async function fetchClients() {
   }
 }
 
+// Cloudflare Edge Cache Purge Helper (for instant 0-second real-time status updates)
+export async function purgeEdgeCache(siteKey) {
+  if (!siteKey) return;
+  const urls = [
+    `https://status.digizier.com/?site=${encodeURIComponent(siteKey)}&purge=true`,
+    `https://status.digizier.workers.dev/?site=${encodeURIComponent(siteKey)}&purge=true`
+  ];
+  await Promise.allSettled(
+    urls.map(url => fetch(url, { method: 'GET', cache: 'no-store' }))
+  ).catch(() => {});
+}
+
 // Add a new client website to Central Cloud Database
 export async function createClientWebsite(clientData) {
   const payload = sanitizePayload(clientData);
@@ -106,6 +118,10 @@ export async function createClientWebsite(clientData) {
 
   if (!created) {
     created = { ...payload, id: payload.id || 'client-' + Date.now() };
+  }
+
+  if (created && created.site_key) {
+    purgeEdgeCache(created.site_key).catch(() => {});
   }
 
   const currentClients = await fetchClients();
@@ -132,6 +148,12 @@ export async function updateClientWebsite(id, updates) {
   }
 
   const currentClients = await fetchClients();
+  const target = currentClients.find(c => c.id === id);
+  const siteKey = updates.site_key || (target && target.site_key);
+  if (siteKey) {
+    await purgeEdgeCache(siteKey);
+  }
+
   const updatedList = currentClients.map(c => c.id === id ? { ...c, ...payload } : c);
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
   return updatedList.find(c => c.id === id);
@@ -140,6 +162,12 @@ export async function updateClientWebsite(id, updates) {
 // Delete client website from Central Cloud Database
 export async function deleteClientWebsite(id) {
   try {
+    const currentClients = await fetchClients();
+    const target = currentClients.find(c => c.id === id);
+    if (target && target.site_key) {
+      await purgeEdgeCache(target.site_key);
+    }
+
     const { error } = await supabase
       .from('client_websites')
       .delete()
