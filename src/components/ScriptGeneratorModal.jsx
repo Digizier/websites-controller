@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
 import { X, Copy, Check, Code, Sparkles, MessageSquare, ShieldCheck, AlertCircle } from 'lucide-react';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY, ADMIN_CONTACT } from '../lib/config';
+import { ADMIN_CONTACT } from '../lib/config';
 
 export default function ScriptGeneratorModal({ client, onClose }) {
   const [copiedPrompt, setCopiedPrompt] = useState(false);
 
   const siteKey = client ? client.site_key : 'site_estate_pro';
   const websiteName = client ? client.website_name : 'Client Website';
-
-  const dbPassword = '5f-Dxpx6YmA?zgEds';
-  const directConnectionString = 'postgresql://postgres:5f-Dxpx6YmA%3FzgEds@db.pggolsqtamtkafrpigfo.supabase.co:5432/postgres';
-  const publishableKey = 'sb_publishable_XpYfaWv-_LNXEyJ5YAmRuw_q0wfyI8d';
 
   // Upgraded self-contained JavaScript Logic with Anti-Cache & Dual-Mode (Under Construction / Payment Lock)
   const rawJsLogic = `(function() {
@@ -171,23 +167,16 @@ export default function ScriptGeneratorModal({ client, onClose }) {
   checkAccess();
 })();`;
 
-  const antigravityPrompt = `Hi Antigravity! Please add First-Layer Lock Protection to this my website for Nadir Habib's Website Controller.
+  const antigravityPrompt = `Hi Antigravity! Please add First-Layer Protection & Status Verification to this website for Nadir Habib's Controller System.
 
---- NADIR HABIB MASTER CONTROLLER CREDENTIALS & DIRECT SETUP ---
-Supabase Controller URL: "${SUPABASE_URL}"
-Publishable Key: "${publishableKey}"
-Database Master Password: "${dbPassword}"
-Direct Connection String (PostgreSQL): "${directConnectionString}"
-Anon Key: "${SUPABASE_ANON_KEY}"
-Service Role Key: "${SUPABASE_SERVICE_KEY}"
-
---- MY WEBSITE CONFIGURATION ---
+--- CONTROLLER STATUS ENDPOINTS (ZERO-KEY PROXY ARCHITECTURE) ---
 Target Site Key: "${siteKey}"
-My Website Name: "${websiteName}"
+Website Name: "${websiteName}"
+Primary Status Endpoint: "https://status.digizier.com/?site=${encodeURIComponent(siteKey)}"
+Backup Status Endpoint: "https://status.digizier.workers.dev/?site=${encodeURIComponent(siteKey)}"
 
---- CRITICAL SUPABASE POSTGREST QUERY SYNTAX REQUIREMENT ---
-Please query the Supabase table client_websites using the PostgREST equality filter site_key=eq.${siteKey} (e.g. ${SUPABASE_URL}/rest/v1/client_websites?site_key=eq.${encodeURIComponent(siteKey)}&select=status,expiry_date,lock_mode,custom_notice,admin_name,admin_whatsapp,billing_cycle,website_name,client_name). 
-Note that "eq." is strictly required by Supabase REST API syntax, and the table name must be "client_websites". Always include cache: "no-store" with no-cache headers to prevent mobile/browser caching lags.
+[CRITICAL SECURITY REQUIREMENT]
+No database credentials, API keys, passwords, or direct connection strings should be used. The client website communicates strictly with the dual-redundancy Edge status endpoints with zero secret keys exposed.
 
 --- INSTRUCTION FOR ANTIGRAVITY (MULTI-FRAMEWORK INTEGRATION) ---
 
@@ -202,12 +191,12 @@ Instead, open src/app/layout.tsx (or src/pages/_document.tsx) and insert a raw H
 [CASE B: IF VITE / REACT / HTML / PHP / WORDPRESS]
 Open index.html (or header layout) and paste this exact self-contained <script> tag directly inside the <head> section:
 
-<!-- NADIR HABIB SOLID FIRST-LAYER PROTECTION -->
+<!-- DIGIZIER QUALITY ASSURANCE & STATUS CONTROLLER -->
 <script data-cfasync="false" data-site-key="${siteKey}">
 ${rawJsLogic}
 </script>
 
-Features: Anti-Cache Realtime Status Busting (&_ts=\${Date.now()}), Immediate Reactivation, and Dual-Mode (Payment Lock vs Under Construction Screen). If status is set to OFF or payment date is expired in Supabase, it instantly locks the website and displays Nadir Habib's WhatsApp contact (${ADMIN_CONTACT.phone}).`;
+Features: Anti-Cache Realtime Status Busting (&_ts=\${Date.now()}), Immediate Reactivation, Dual-Mode (Payment Overdue vs Under Construction Screen), and Dual-Redundancy Cloudflare Worker fallback. If status is set to OFF or payment date is expired in the Controller, it instantly displays the respective maintenance or overdue notice with Nadir Habib's WhatsApp contact (${ADMIN_CONTACT.phone}).`;
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
