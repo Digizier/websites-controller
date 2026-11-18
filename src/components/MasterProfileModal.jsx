@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Phone, MessageSquare, ShieldCheck, Check, Sparkles, AlertCircle, Save } from 'lucide-react';
+import { X, User, Phone, MessageSquare, ShieldCheck, Check, Sparkles, AlertCircle, Save, CreditCard } from 'lucide-react';
 import { fetchMasterProfile, updateMasterProfile } from '../lib/supabase';
 import { ADMIN_CONTACT } from '../lib/config';
+import {
+  DEFAULT_PAYMENT_ACCOUNTS,
+  getStoredPaymentAccounts,
+  saveStoredPaymentAccounts,
+  unpackProfileData,
+  packProfileData
+} from '../lib/paymentAccounts';
 
 export default function MasterProfileModal({ isOpen, onClose, onUpdated }) {
   if (!isOpen) return null;
@@ -21,6 +28,8 @@ export default function MasterProfileModal({ isOpen, onClose, onUpdated }) {
     default_construction_notice: 'This website is currently undergoing scheduled maintenance or system upgrades. Access will be restored shortly.'
   });
 
+  const [paymentAccounts, setPaymentAccounts] = useState(getStoredPaymentAccounts());
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -29,12 +38,16 @@ export default function MasterProfileModal({ isOpen, onClose, onUpdated }) {
     setLoading(true);
     const data = await fetchMasterProfile();
     if (data) {
+      const { note, accounts } = unpackProfileData(data);
       setFormData(prev => ({
         ...prev,
         ...data,
-        default_payment_notice: data.default_payment_notice || prev.default_payment_notice,
+        default_payment_notice: note || prev.default_payment_notice,
         default_construction_notice: data.default_construction_notice || prev.default_construction_notice
       }));
+      if (accounts) {
+        setPaymentAccounts(accounts);
+      }
     }
     setLoading(false);
   };
@@ -46,7 +59,18 @@ export default function MasterProfileModal({ isOpen, onClose, onUpdated }) {
     setSuccess(false);
 
     try {
-      const res = await updateMasterProfile(formData);
+      // Save payment accounts locally
+      saveStoredPaymentAccounts(paymentAccounts);
+
+      // Pack payment accounts into default_payment_notice JSON for cross-device cloud sync
+      const packedNotice = packProfileData(formData.default_payment_notice, paymentAccounts);
+
+      const payload = {
+        ...formData,
+        default_payment_notice: packedNotice
+      };
+
+      const res = await updateMasterProfile(payload);
       if (res) {
         setSuccess(true);
         if (onUpdated) onUpdated(res);
@@ -76,7 +100,7 @@ export default function MasterProfileModal({ isOpen, onClose, onUpdated }) {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900">Master Owner Profile & Contact</h3>
-              <p className="text-xs text-slate-400">Controls live lock screens across all your client websites</p>
+              <p className="text-xs text-slate-400">Controls live lock screens and 1-Click WhatsApp Dispatcher accounts</p>
             </div>
           </div>
           <button
@@ -91,7 +115,7 @@ export default function MasterProfileModal({ isOpen, onClose, onUpdated }) {
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 flex items-start gap-2">
           <Sparkles className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            Agar aapka WhatsApp number change hota hai, aap yahan update karenge toh <strong>saari client websites par live contact number usi waqt automatic update ho jayega!</strong>
+            Yahan se aapka phone aur payment accounts (JazzCash / EasyPaisa / Bank) <strong>WhatsApp Dispatcher aur client websites par real-time sync</strong> ho jate hain!
           </p>
         </div>
 
@@ -99,7 +123,7 @@ export default function MasterProfileModal({ isOpen, onClose, onUpdated }) {
         {success && (
           <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-bold flex items-center gap-2 animate-fade-in">
             <Check className="w-4 h-4 text-emerald-600" />
-            <span>Master Profile successfully updated in database!</span>
+            <span>Master Profile & Payment Accounts successfully updated!</span>
           </div>
         )}
 
@@ -174,7 +198,175 @@ export default function MasterProfileModal({ isOpen, onClose, onUpdated }) {
             />
           </div>
 
-          <div>
+          {/* Payment Receiving Accounts Section */}
+          <div className="pt-3 border-t border-slate-100 space-y-3">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              <div>
+                <span className="block text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Payment Receiving Accounts
+                </span>
+                <span className="block text-[11px] text-slate-500">
+                  Yeh accounts 1-Click WhatsApp Dispatcher messages me dynamically include honge
+                </span>
+              </div>
+            </div>
+
+            {/* JazzCash Card */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span>🏦</span> JazzCash Account
+                </span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={paymentAccounts.jazzcash.enabled}
+                    onChange={(e) => setPaymentAccounts({
+                      ...paymentAccounts,
+                      jazzcash: { ...paymentAccounts.jazzcash, enabled: e.target.checked }
+                    })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">JazzCash Number</span>
+                  <input
+                    type="text"
+                    value={paymentAccounts.jazzcash.number}
+                    onChange={(e) => setPaymentAccounts({
+                      ...paymentAccounts,
+                      jazzcash: { ...paymentAccounts.jazzcash, number: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Account Title / Holder</span>
+                  <input
+                    type="text"
+                    value={paymentAccounts.jazzcash.title}
+                    onChange={(e) => setPaymentAccounts({
+                      ...paymentAccounts,
+                      jazzcash: { ...paymentAccounts.jazzcash, title: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* EasyPaisa Card */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span>📱</span> EasyPaisa Account
+                </span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={paymentAccounts.easypaisa.enabled}
+                    onChange={(e) => setPaymentAccounts({
+                      ...paymentAccounts,
+                      easypaisa: { ...paymentAccounts.easypaisa, enabled: e.target.checked }
+                    })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">EasyPaisa Number</span>
+                  <input
+                    type="text"
+                    value={paymentAccounts.easypaisa.number}
+                    onChange={(e) => setPaymentAccounts({
+                      ...paymentAccounts,
+                      easypaisa: { ...paymentAccounts.easypaisa, number: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Account Title / Holder</span>
+                  <input
+                    type="text"
+                    value={paymentAccounts.easypaisa.title}
+                    onChange={(e) => setPaymentAccounts({
+                      ...paymentAccounts,
+                      easypaisa: { ...paymentAccounts.easypaisa, title: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bank Card */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <span>🏛️</span> Bank Transfer
+                </span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={paymentAccounts.bank.enabled}
+                    onChange={(e) => setPaymentAccounts({
+                      ...paymentAccounts,
+                      bank: { ...paymentAccounts.bank, enabled: e.target.checked }
+                    })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Bank Name</span>
+                  <input
+                    type="text"
+                    value={paymentAccounts.bank.name}
+                    onChange={(e) => setPaymentAccounts({
+                      ...paymentAccounts,
+                      bank: { ...paymentAccounts.bank, name: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Account / IBAN</span>
+                  <input
+                    type="text"
+                    value={paymentAccounts.bank.number}
+                    onChange={(e) => setPaymentAccounts({
+                      ...paymentAccounts,
+                      bank: { ...paymentAccounts.bank, number: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Account Title</span>
+                  <input
+                    type="text"
+                    value={paymentAccounts.bank.title}
+                    onChange={(e) => setPaymentAccounts({
+                      ...paymentAccounts,
+                      bank: { ...paymentAccounts.bank, title: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100">
             <label className="block text-xs font-bold text-slate-700 mb-1">Default Payment Lock Notice</label>
             <textarea
               rows="2"
