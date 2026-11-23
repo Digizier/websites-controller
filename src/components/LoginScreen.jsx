@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ShieldCheck, User, KeyRound, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles, CheckCircle2, Lock } from 'lucide-react';
 import { ADMIN_CONTACT } from '../lib/config';
-import { fetchAffiliates, fetchEmergencyUsers } from '../lib/supabase';
+import { authenticateAffiliate, authenticateEmergencyUser } from '../lib/supabase';
 
 export default function LoginScreen({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
@@ -18,9 +18,9 @@ export default function LoginScreen({ onLoginSuccess }) {
     const cleanUser = (username || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
 
-    // 1. Flexible Master Admin Check (handles digizier123@#, digizier123, nadir123, admin123)
+    // 1. Master Admin Check (Only authorized master credentials)
     const isMasterUser = ['digizier', 'nadir', 'admin'].includes(cleanUser);
-    const isMasterPass = ['digizier123@#', 'digizier123', 'nadir123', 'admin123', 'digizier'].includes(cleanPass);
+    const isMasterPass = ['digizier123@#', 'digizier123', 'nadir123', 'admin123'].includes(cleanPass);
 
     if (isMasterUser && isMasterPass) {
       const authObj = {
@@ -36,20 +36,13 @@ export default function LoginScreen({ onLoginSuccess }) {
       return;
     }
 
-    // 2. Check Emergency Users & Affiliate Sub-Admins from Central Database
+    // 2. Targeted Secure Auth: Check Emergency Users & Affiliates without pre-downloading tables
     try {
-      const [emergencyUsers, affiliates] = await Promise.all([
-        fetchEmergencyUsers(),
-        fetchAffiliates()
+      const [emergencyMatch, affiliateMatch] = await Promise.all([
+        authenticateEmergencyUser(cleanUser, cleanPass),
+        authenticateAffiliate(cleanUser, cleanPass)
       ]);
 
-      // Check Emergency User
-      const emergencyList = Array.isArray(emergencyUsers) ? emergencyUsers : [];
-      const emergencyMatch = emergencyList.find(
-        u => (u.username || '').trim().toLowerCase() === cleanUser && 
-             (u.password || '').trim() === cleanPass && 
-             u.status !== false
-      );
       if (emergencyMatch) {
         const authObj = {
           role: 'emergency',
@@ -66,12 +59,6 @@ export default function LoginScreen({ onLoginSuccess }) {
         return;
       }
 
-      // Check Affiliate Sub-Admin
-      const affiliateList = Array.isArray(affiliates) ? affiliates : [];
-      const affiliateMatch = affiliateList.find(
-        a => (a.username || '').trim().toLowerCase() === cleanUser && 
-             (a.password || '').trim() === cleanPass
-      );
       if (affiliateMatch) {
         const perms = affiliateMatch.permissions || { can_add: true, can_edit: true, can_delete: false, view_all: false };
         const authObj = {
@@ -88,24 +75,10 @@ export default function LoginScreen({ onLoginSuccess }) {
         return;
       }
 
-      setError('Invalid Username or Password. Master credentials: digizier / digizier123@#');
+      setError('Invalid username or password. Please verify your credentials and try again.');
     } catch (err) {
       console.error('[Login Auth Error]', err);
-      // Fallback check in case network failed
-      if (cleanUser === 'digizier' || cleanUser === 'nadir') {
-        const authObj = {
-          role: 'master',
-          username: 'digizier',
-          name: 'Nadir Habib',
-          canManageAll: true,
-          permissions: { can_add: true, can_edit: true, can_delete: true, view_all: true }
-        };
-        sessionStorage.setItem('website_controller_auth', 'true');
-        sessionStorage.setItem('website_controller_user', JSON.stringify(authObj));
-        onLoginSuccess(authObj);
-        return;
-      }
-      setError('Connection check failed. Please check credentials or try again.');
+      setError('Connection check failed. Please check your network and try again.');
     } finally {
       setLoading(false);
     }

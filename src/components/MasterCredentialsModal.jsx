@@ -16,12 +16,11 @@ export default function MasterCredentialsModal({ isOpen, onClose }) {
 
   const masterKeys = [
     { label: 'Central Controller Cloud Database URL', value: SUPABASE_URL, keyName: 'url', color: 'text-slate-900 font-bold' },
-    { label: 'Publishable Key', value: 'sb_publishable_XpYfaWv-_LNXEyJ5YAmRuw_q0wfyI8d', keyName: 'pub', color: 'text-blue-700' },
-    { label: 'Database Master Password', value: '5f-Dxpx6YmA?zgEds', isSensitive: true, keyName: 'pwd', color: 'text-amber-700' },
-    { label: 'Direct Connection String (PostgreSQL)', value: 'postgresql://postgres:5f-Dxpx6YmA%3FzgEds@db.pggolsqtamtkafrpigfo.supabase.co:5432/postgres', isSensitive: true, keyName: 'conn', color: 'text-purple-700' },
+    { label: 'Publishable Key', value: SUPABASE_ANON_KEY, keyName: 'pub', color: 'text-blue-700' },
+    { label: 'Database Master Password', value: 'Configured in Supabase Dashboard (Protected)', isSensitive: true, keyName: 'pwd', color: 'text-amber-700' },
+    { label: 'Direct Connection String (PostgreSQL)', value: 'postgresql://postgres:[YOUR-PASSWORD]@db.pggolsqtamtkafrpigfo.supabase.co:5432/postgres', isSensitive: true, keyName: 'conn', color: 'text-purple-700' },
     { label: 'CLI Setup Command', value: 'supabase link --project-ref pggolsqtamtkafrpigfo', keyName: 'cli', color: 'text-emerald-700' },
-    { label: 'anon_key', value: SUPABASE_ANON_KEY, keyName: 'anon', color: 'text-slate-600' },
-    { label: 'service_role_key', value: SUPABASE_SERVICE_KEY, isSensitive: true, keyName: 'service', color: 'text-rose-700' },
+    { label: 'Secret Key (Service Role)', value: SUPABASE_SERVICE_KEY, isSensitive: true, keyName: 'service', color: 'text-rose-700' },
     { label: 'cron-job.org Master API Key', value: CRON_JOB_API_KEY, keyName: 'cron', color: 'text-blue-600' }
   ];
 

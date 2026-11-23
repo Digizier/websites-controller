@@ -288,9 +288,47 @@ export async function deleteAffiliate(id) {
   }
 }
 
+// Secure targeted authentication for affiliates (never leaks full list of credentials)
+export async function authenticateAffiliate(username, password) {
+  try {
+    const { data, error } = await supabase
+      .from('controller_affiliates')
+      .select('id, username, full_name, commission_amount, permissions')
+      .eq('username', username)
+      .eq('password', password)
+      .maybeSingle();
+
+    if (!error && data) {
+      return data;
+    }
+  } catch (err) {
+    console.error('[Auth Affiliate Exception]', err);
+  }
+  return null;
+}
+
 // -------------------------------------------------------------
 // EMERGENCY CONTROLLER ACCESS USERS (GUARANTEED ARRAY RETURN)
 // -------------------------------------------------------------
+
+// Secure targeted authentication for emergency users (never leaks full list of credentials)
+export async function authenticateEmergencyUser(username, password) {
+  try {
+    const { data, error } = await supabase
+      .from('controller_emergency_users')
+      .select('id, username, full_name, profile_image, can_view_affiliates, status')
+      .eq('username', username)
+      .eq('password', password)
+      .maybeSingle();
+
+    if (!error && data && data.status !== false) {
+      return data;
+    }
+  } catch (err) {
+    console.error('[Auth Emergency Exception]', err);
+  }
+  return null;
+}
 
 export async function fetchEmergencyUsers() {
   try {
