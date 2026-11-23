@@ -1234,33 +1234,57 @@ function ControllerDashboard({ authUser, onLogout }) {
   );
 }
 
+// Master Session Security Signature - prevents DevTools sessionStorage tampering
+const VALID_MASTER_TOKEN = '68c782dd05e1494ef04fbbaa5e1b70b8f7d7a7c3cca17ed252eba419783e5b6f';
+
 function MainApp() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem('website_controller_auth') === 'true';
+    const isAuth = sessionStorage.getItem('website_controller_auth') === 'true';
+    if (!isAuth) return false;
+
+    try {
+      const saved = sessionStorage.getItem('website_controller_user');
+      const user = saved ? JSON.parse(saved) : null;
+      if (!user) return false;
+
+      // Master role must present valid cryptographic session token
+      if (user.role === 'master') {
+        const token = sessionStorage.getItem('website_controller_token');
+        if (token !== VALID_MASTER_TOKEN) {
+          sessionStorage.clear();
+          return false;
+        }
+      }
+      return true;
+    } catch {
+      sessionStorage.clear();
+      return false;
+    }
   });
 
   const [authUser, setAuthUser] = useState(() => {
     try {
       const saved = sessionStorage.getItem('website_controller_user');
-      return saved ? JSON.parse(saved) : { role: 'master', username: 'digizier', name: 'Nadir Habib' };
+      return saved ? JSON.parse(saved) : null;
     } catch {
-      return { role: 'master', username: 'digizier', name: 'Nadir Habib' };
+      return null;
     }
   });
 
   const handleLoginSuccess = (userObj) => {
-    const validUser = userObj || { role: 'master', username: 'digizier', name: 'Nadir Habib' };
-    setAuthUser(validUser);
+    setAuthUser(userObj);
     setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
     sessionStorage.removeItem('website_controller_auth');
+    sessionStorage.removeItem('website_controller_token');
     sessionStorage.removeItem('website_controller_user');
+    setAuthUser(null);
     setIsAuthenticated(false);
   };
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !authUser) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 

@@ -66,7 +66,8 @@ export default function LoginScreen({ onLoginSuccess }) {
     const cleanPass = (password || '').trim();
 
     // 1. Master Admin Check (Verified via zero-knowledge SHA-256 hash comparison)
-    const isMasterUser = ['digizier', 'nadir'].includes(cleanUser);
+    // ONLY username 'digizier' is allowed master access
+    const isMasterUser = cleanUser === 'digizier';
     const passHash = await computeSha256(cleanPass);
     const isMasterPass = passHash === MASTER_PASSWORD_HASH;
 
@@ -74,6 +75,8 @@ export default function LoginScreen({ onLoginSuccess }) {
       // Clear brute-force counters on successful auth
       localStorage.removeItem(STORAGE_ATTEMPTS_KEY);
       localStorage.removeItem(STORAGE_LOCKOUT_KEY);
+
+      const sessionToken = await computeSha256(cleanPass + '_digizier_master_session_salt');
 
       const authObj = {
         role: 'master',
@@ -83,6 +86,7 @@ export default function LoginScreen({ onLoginSuccess }) {
         permissions: { can_add: true, can_edit: true, can_delete: true, view_all: true }
       };
       sessionStorage.setItem('website_controller_auth', 'true');
+      sessionStorage.setItem('website_controller_token', sessionToken);
       sessionStorage.setItem('website_controller_user', JSON.stringify(authObj));
       onLoginSuccess(authObj);
       return;
