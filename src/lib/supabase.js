@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY } from './config';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY);
+// Browser client ALWAYS uses Publishable / Anon Key (Supabase blocks Secret Key in browsers)
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export const LOCAL_STORAGE_KEY = 'website_controller_clients_v2';
 export const AFFILIATES_STORAGE_KEY = 'website_controller_affiliates_v1';
@@ -99,7 +100,6 @@ export async function purgeEdgeCache(siteKey) {
 // Add a new client website to Central Cloud Database
 export async function createClientWebsite(clientData) {
   const payload = sanitizePayload(clientData);
-  let created = null;
 
   try {
     const { data, error } = await supabase
@@ -109,25 +109,26 @@ export async function createClientWebsite(clientData) {
 
     if (error) {
       console.error('[Insert Client Error]', error);
-    } else if (data && data[0]) {
-      created = data[0];
+      alert(`⚠️ Supabase Database Error: ${error.message || 'Failed to create client website'}`);
+      return null;
+    }
+
+    if (data && data[0]) {
+      const created = data[0];
+      if (created.site_key) {
+        await purgeEdgeCache(created.site_key);
+      }
+      const currentClients = await fetchClients();
+      const updatedList = [created, ...currentClients.filter(c => c.id !== created.id && c.site_key !== created.site_key)];
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
+      return created;
     }
   } catch (err) {
     console.error('[Insert Client Exception]', err);
+    alert(`⚠️ Connection Exception: ${err.message || 'Failed to connect to Supabase'}`);
+    return null;
   }
-
-  if (!created) {
-    created = { ...payload, id: payload.id || 'client-' + Date.now() };
-  }
-
-  if (created && created.site_key) {
-    purgeEdgeCache(created.site_key).catch(() => {});
-  }
-
-  const currentClients = await fetchClients();
-  const updatedList = [created, ...currentClients.filter(c => c.id !== created.id && c.site_key !== created.site_key)];
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
-  return created;
+  return null;
 }
 
 // Update client website in Central Cloud Database
@@ -135,28 +136,32 @@ export async function updateClientWebsite(id, updates) {
   const payload = sanitizePayload(updates);
 
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('client_websites')
       .update(payload)
-      .eq('id', id);
+      .eq('id', id)
+      .select();
 
     if (error) {
       console.error('[Update Client Error]', error);
+      alert(`⚠️ Supabase Database Error: ${error.message || 'Failed to update website'}`);
+      return { error };
     }
+
+    const targetSiteKey = updates.site_key || (data && data[0] && data[0].site_key);
+    if (targetSiteKey) {
+      await purgeEdgeCache(targetSiteKey);
+    }
+
+    const currentClients = await fetchClients();
+    const updatedList = currentClients.map(c => c.id === id ? { ...c, ...payload } : c);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
+    return (data && data[0]) || updatedList.find(c => c.id === id);
   } catch (err) {
     console.error('[Update Client Exception]', err);
+    alert(`⚠️ Connection Exception: ${err.message || 'Failed to update database'}`);
+    return { error: err };
   }
-
-  const currentClients = await fetchClients();
-  const target = currentClients.find(c => c.id === id);
-  const siteKey = updates.site_key || (target && target.site_key);
-  if (siteKey) {
-    await purgeEdgeCache(siteKey);
-  }
-
-  const updatedList = currentClients.map(c => c.id === id ? { ...c, ...payload } : c);
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
-  return updatedList.find(c => c.id === id);
 }
 
 // Delete client website from Central Cloud Database
@@ -175,15 +180,18 @@ export async function deleteClientWebsite(id) {
 
     if (error) {
       console.error('[Delete Client Error]', error);
+      alert(`⚠️ Supabase Database Error: ${error.message || 'Failed to delete client'}`);
+      return false;
     }
+
+    const updatedList = currentClients.filter(c => c.id !== id);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
+    return true;
   } catch (err) {
     console.error('[Delete Client Exception]', err);
+    alert(`⚠️ Connection Exception: ${err.message || 'Failed to delete from database'}`);
+    return false;
   }
-
-  const currentClients = await fetchClients();
-  const updatedList = currentClients.filter(c => c.id !== id);
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
-  return true;
 }
 
 // Quick extend client expiry date (safe ISO calculation)

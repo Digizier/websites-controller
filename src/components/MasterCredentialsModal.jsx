@@ -3,7 +3,6 @@ import { X, Key, Database, Globe, Copy, Check, ShieldCheck, Terminal, Sparkles, 
 import { 
   SUPABASE_URL, 
   SUPABASE_ANON_KEY, 
-  SUPABASE_SERVICE_KEY, 
   CRON_JOB_API_KEY, 
   ADMIN_CONTACT 
 } from '../lib/config';
@@ -22,7 +21,7 @@ export default function MasterCredentialsModal({ isOpen, onClose }) {
     { label: 'Database Master Password', value: 'Configured in Supabase Dashboard (Protected)', isSensitive: true, keyName: 'pwd', color: 'text-amber-700' },
     { label: 'Direct Connection String (PostgreSQL)', value: `postgresql://postgres:[YOUR-PASSWORD]@db.${projectRef}.supabase.co:5432/postgres`, isSensitive: true, keyName: 'conn', color: 'text-purple-700' },
     { label: 'CLI Setup Command', value: `supabase link --project-ref ${projectRef}`, keyName: 'cli', color: 'text-emerald-700' },
-    { label: 'Secret Key (Service Role)', value: SUPABASE_SERVICE_KEY || 'Configured via Environment Variables', isSensitive: true, keyName: 'service', color: 'text-rose-700' },
+    { label: 'Secret Key (Service Role)', value: 'Secured on Cloudflare Worker Backend (Never exposed in frontend)', isSensitive: true, keyName: 'service', color: 'text-rose-700' },
     { label: 'cron-job.org Master API Key', value: CRON_JOB_API_KEY || 'Configured via Environment Variables', keyName: 'cron', color: 'text-blue-600' }
   ];
 

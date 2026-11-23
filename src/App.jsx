@@ -312,14 +312,19 @@ function ControllerDashboard({ authUser, onLogout }) {
       };
     }
 
-    await updateClientWebsite(client.id, { ...updates, site_key: client.site_key });
+    const result = await updateClientWebsite(client.id, { ...updates, site_key: client.site_key });
+    if (result && result.error) {
+      return; // Do not update local UI state if database update failed
+    }
+
     setClients(prev => prev.map(c => c.id === client.id ? { ...c, ...updates } : c));
     setStatusConfirmTarget(null);
   };
 
   // Quick Extend (+30 Days)
   const handleQuickExtend = async (client, days) => {
-    await extendClientExpiry(client.id, client.expiry_date, days);
+    const res = await extendClientExpiry(client.id, client.expiry_date, days);
+    if (res && res.error) return;
     loadData();
   };
 
@@ -328,7 +333,8 @@ function ControllerDashboard({ authUser, onLogout }) {
     if (client.cron_job_id) {
       await deleteCronJob(client.cron_job_id, client.cron_api_key);
     }
-    await deleteClientWebsite(client.id);
+    const success = await deleteClientWebsite(client.id);
+    if (!success) return;
     setClients(prev => prev.filter(c => c.id !== client.id));
     setDeletingClient(null);
   };
@@ -336,9 +342,11 @@ function ControllerDashboard({ authUser, onLogout }) {
   // Save Add/Edit Client
   const handleSaveClient = async (formData) => {
     if (editingClient) {
-      await updateClientWebsite(editingClient.id, formData);
+      const res = await updateClientWebsite(editingClient.id, formData);
+      if (res && res.error) return;
     } else {
-      await createClientWebsite(formData);
+      const res = await createClientWebsite(formData);
+      if (!res) return;
     }
     setIsClientModalOpen(false);
     setEditingClient(null);
