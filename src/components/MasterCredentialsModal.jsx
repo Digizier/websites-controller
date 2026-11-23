@@ -14,14 +14,16 @@ export default function MasterCredentialsModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
+  const projectRef = (SUPABASE_URL || '').replace('https://', '').split('.')[0] || 'your-project-ref';
+
   const masterKeys = [
-    { label: 'Central Controller Cloud Database URL', value: SUPABASE_URL, keyName: 'url', color: 'text-slate-900 font-bold' },
-    { label: 'Publishable Key', value: SUPABASE_ANON_KEY, keyName: 'pub', color: 'text-blue-700' },
+    { label: 'Central Controller Cloud Database URL', value: SUPABASE_URL || 'Configured via Environment Variables', keyName: 'url', color: 'text-slate-900 font-bold' },
+    { label: 'Publishable Key', value: SUPABASE_ANON_KEY || 'Configured via Environment Variables', keyName: 'pub', color: 'text-blue-700' },
     { label: 'Database Master Password', value: 'Configured in Supabase Dashboard (Protected)', isSensitive: true, keyName: 'pwd', color: 'text-amber-700' },
-    { label: 'Direct Connection String (PostgreSQL)', value: 'postgresql://postgres:[YOUR-PASSWORD]@db.pggolsqtamtkafrpigfo.supabase.co:5432/postgres', isSensitive: true, keyName: 'conn', color: 'text-purple-700' },
-    { label: 'CLI Setup Command', value: 'supabase link --project-ref pggolsqtamtkafrpigfo', keyName: 'cli', color: 'text-emerald-700' },
-    { label: 'Secret Key (Service Role)', value: SUPABASE_SERVICE_KEY, isSensitive: true, keyName: 'service', color: 'text-rose-700' },
-    { label: 'cron-job.org Master API Key', value: CRON_JOB_API_KEY, keyName: 'cron', color: 'text-blue-600' }
+    { label: 'Direct Connection String (PostgreSQL)', value: `postgresql://postgres:[YOUR-PASSWORD]@db.${projectRef}.supabase.co:5432/postgres`, isSensitive: true, keyName: 'conn', color: 'text-purple-700' },
+    { label: 'CLI Setup Command', value: `supabase link --project-ref ${projectRef}`, keyName: 'cli', color: 'text-emerald-700' },
+    { label: 'Secret Key (Service Role)', value: SUPABASE_SERVICE_KEY || 'Configured via Environment Variables', isSensitive: true, keyName: 'service', color: 'text-rose-700' },
+    { label: 'cron-job.org Master API Key', value: CRON_JOB_API_KEY || 'Configured via Environment Variables', keyName: 'cron', color: 'text-blue-600' }
   ];
 
   const copyText = (txt, label) => {

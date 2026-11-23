@@ -1,6 +1,6 @@
 -- SQL Migration Script for Nader Habib Website Controller
 -- Execute this script in your Supabase SQL Editor:
--- https://supabase.com/dashboard/project/pggolsqtamtkafrpigfo/sql/new
+-- https://supabase.com/dashboard/project/[YOUR-PROJECT-ID]/sql/new
 
 CREATE TABLE IF NOT EXISTS public.client_websites (
     id UUID DEFAULT gen_random_policy_id() PRIMARY KEY,

@@ -7,8 +7,13 @@ export default function DatabaseSetupModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
+  const projectRef = (SUPABASE_URL || '').replace('https://', '').split('.')[0] || 'your-project-ref';
+  const sqlEditorLink = projectRef !== 'your-project-ref' 
+    ? `https://supabase.com/dashboard/project/${projectRef}/sql/new` 
+    : 'https://supabase.com/dashboard';
+
   const sqlQuery = `-- Copy & Paste this into Supabase SQL Editor:
--- ${SUPABASE_URL}/dashboard/project/pggolsqtamtkafrpigfo/sql/new
+-- ${sqlEditorLink}
 
 CREATE TABLE IF NOT EXISTS public.client_websites (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -86,7 +91,7 @@ ON public.client_websites FOR ALL USING (true) WITH CHECK (true);`;
 
         <div className="mt-6 pt-4 border-t border-gray-800 flex items-center justify-between">
           <a
-            href="https://supabase.com/dashboard/project/pggolsqtamtkafrpigfo/sql/new"
+            href={sqlEditorLink}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-xs font-semibold text-emerald-400 hover:underline"
