@@ -1,8 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
-// Browser client ALWAYS uses Publishable / Anon Key (Supabase blocks Secret Key in browsers)
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Browser client ALWAYS uses Publishable / Anon Key with dynamic session-gated auth headers
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: {
+    fetch: (url, options = {}) => {
+      const headers = new Headers(options.headers || {});
+      if (typeof window !== 'undefined') {
+        const token = sessionStorage.getItem('website_controller_session_token');
+        const role = sessionStorage.getItem('website_controller_role');
+        const userId = sessionStorage.getItem('website_controller_user_id');
+
+        if (token) headers.set('x-controller-auth', token);
+        if (role) headers.set('x-controller-role', role);
+        if (userId) headers.set('x-controller-id', userId);
+      }
+      return fetch(url, { ...options, headers });
+    }
+  }
+});
 
 export const LOCAL_STORAGE_KEY = 'website_controller_clients_v2';
 export const AFFILIATES_STORAGE_KEY = 'website_controller_affiliates_v1';

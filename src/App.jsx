@@ -1277,9 +1277,7 @@ function MainApp() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('website_controller_auth');
-    sessionStorage.removeItem('website_controller_token');
-    sessionStorage.removeItem('website_controller_user');
+    sessionStorage.clear();
     setAuthUser(null);
     setIsAuthenticated(false);
   };

@@ -87,6 +87,9 @@ export default function LoginScreen({ onLoginSuccess }) {
       };
       sessionStorage.setItem('website_controller_auth', 'true');
       sessionStorage.setItem('website_controller_token', sessionToken);
+      sessionStorage.setItem('website_controller_session_token', sessionToken);
+      sessionStorage.setItem('website_controller_role', 'master');
+      sessionStorage.setItem('website_controller_user_id', 'master');
       sessionStorage.setItem('website_controller_user', JSON.stringify(authObj));
       onLoginSuccess(authObj);
       return;
@@ -103,6 +106,8 @@ export default function LoginScreen({ onLoginSuccess }) {
         localStorage.removeItem(STORAGE_ATTEMPTS_KEY);
         localStorage.removeItem(STORAGE_LOCKOUT_KEY);
 
+        // Emergency user: STRICTLY allowed to lock/unlock and extend expiry only.
+        // CANNOT add new clients, CANNOT edit client details, CANNOT delete any rows!
         const authObj = {
           role: 'emergency',
           id: emergencyMatch.id,
@@ -110,9 +115,12 @@ export default function LoginScreen({ onLoginSuccess }) {
           name: emergencyMatch.full_name,
           profile_image: emergencyMatch.profile_image,
           can_view_affiliates: emergencyMatch.can_view_affiliates,
-          permissions: { can_add: false, can_edit: true, can_delete: false, view_all: true }
+          permissions: { can_add: false, can_edit: false, can_delete: false, view_all: true }
         };
         sessionStorage.setItem('website_controller_auth', 'true');
+        sessionStorage.setItem('website_controller_session_token', 'emergency_' + emergencyMatch.id);
+        sessionStorage.setItem('website_controller_role', 'emergency');
+        sessionStorage.setItem('website_controller_user_id', emergencyMatch.id);
         sessionStorage.setItem('website_controller_user', JSON.stringify(authObj));
         onLoginSuccess(authObj);
         return;
@@ -129,9 +137,12 @@ export default function LoginScreen({ onLoginSuccess }) {
           username: affiliateMatch.username,
           name: affiliateMatch.full_name,
           commission_amount: affiliateMatch.commission_amount || 500,
-          permissions: perms
+          permissions: { ...perms, can_delete: false }
         };
         sessionStorage.setItem('website_controller_auth', 'true');
+        sessionStorage.setItem('website_controller_session_token', 'affiliate_' + affiliateMatch.id);
+        sessionStorage.setItem('website_controller_role', 'affiliate');
+        sessionStorage.setItem('website_controller_user_id', affiliateMatch.id);
         sessionStorage.setItem('website_controller_user', JSON.stringify(authObj));
         onLoginSuccess(authObj);
         return;
