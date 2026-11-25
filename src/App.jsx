@@ -341,11 +341,17 @@ function ControllerDashboard({ authUser, onLogout }) {
 
   // Save Add/Edit Client
   const handleSaveClient = async (formData) => {
+    const payload = { ...formData };
+    // Automatically bind the affiliate's ID so RLS policy approves the insert/update
+    if (authUser && authUser.role === 'affiliate' && authUser.id) {
+      payload.affiliate_id = authUser.id;
+    }
+
     if (editingClient) {
-      const res = await updateClientWebsite(editingClient.id, formData);
+      const res = await updateClientWebsite(editingClient.id, payload);
       if (res && res.error) return;
     } else {
-      const res = await createClientWebsite(formData);
+      const res = await createClientWebsite(payload);
       if (!res) return;
     }
     setIsClientModalOpen(false);

@@ -315,11 +315,28 @@ export async function deleteAffiliate(id) {
 // Secure targeted authentication for affiliates (never leaks full list of credentials)
 export async function authenticateAffiliate(username, password) {
   try {
+    const cleanUser = (username || '').trim();
+    const cleanPass = (password || '').trim();
+
+    // 1. Try secure RPC authentication first (works seamlessly with locked-down RLS)
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('authenticate_controller_user', {
+        p_username: cleanUser,
+        p_password: cleanPass
+      });
+      if (!rpcError && rpcData && rpcData.type === 'affiliate') {
+        return rpcData;
+      }
+    } catch {
+      // Fall through to direct query if RPC is not yet registered
+    }
+
+    // 2. Direct table fallback
     const { data, error } = await supabase
       .from('controller_affiliates')
       .select('id, username, full_name, commission_amount, permissions')
-      .eq('username', username)
-      .eq('password', password)
+      .eq('username', cleanUser)
+      .eq('password', cleanPass)
       .maybeSingle();
 
     if (!error && data) {
@@ -338,11 +355,28 @@ export async function authenticateAffiliate(username, password) {
 // Secure targeted authentication for emergency users (never leaks full list of credentials)
 export async function authenticateEmergencyUser(username, password) {
   try {
+    const cleanUser = (username || '').trim();
+    const cleanPass = (password || '').trim();
+
+    // 1. Try secure RPC authentication first (works seamlessly with locked-down RLS)
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('authenticate_controller_user', {
+        p_username: cleanUser,
+        p_password: cleanPass
+      });
+      if (!rpcError && rpcData && rpcData.type === 'emergency') {
+        return rpcData;
+      }
+    } catch {
+      // Fall through to direct query if RPC is not yet registered
+    }
+
+    // 2. Direct table fallback
     const { data, error } = await supabase
       .from('controller_emergency_users')
       .select('id, username, full_name, profile_image, can_view_affiliates, status')
-      .eq('username', username)
-      .eq('password', password)
+      .eq('username', cleanUser)
+      .eq('password', cleanPass)
       .maybeSingle();
 
     if (!error && data && data.status !== false) {
